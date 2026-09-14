@@ -1,0 +1,46 @@
+name: Fix prototype startup
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-prototype-startup.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix initial animation-frame startup
+        shell: python
+        run: |
+          from pathlib import Path
+          import base64, gzip, re
+
+          path = Path('prototype/aquarium_fishing_prototype_reset_button.html')
+          wrapper = path.read_text(encoding='utf-8')
+          m = re.search(r"atob\('([^']+)'\)", wrapper)
+          if not m:
+              raise SystemExit('compressed prototype payload not found')
+
+          html = gzip.decompress(base64.b64decode(m.group(1))).decode('utf-8')
+          old = 'draw();tick();'
+          new = 'draw();requestAnimationFrame(tick);'
+          if old not in html:
+              raise SystemExit('startup pattern not found')
+
+          html = html.replace(old, new, 1)
+          payload = base64.b64encode(gzip.compress(html.encode('utf-8'), compresslevel=9, mtime=0)).decode('ascii')
+          wrapper = wrapper[:m.start(1)] + payload + wrapper[m.end(1):]
+          path.write_text(wrapper, encoding='utf-8')
+
+      - name: Commit startup fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add prototype/aquarium_fishing_prototype_reset_button.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix prototype startup after fixed timestep change"
+          git push
