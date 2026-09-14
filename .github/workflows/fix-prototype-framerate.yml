@@ -1,0 +1,85 @@
+name: Fix prototype framerate
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-prototype-framerate.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Convert prototype logic to fixed 60 Hz step
+        shell: python
+        run: |
+          from pathlib import Path
+          import base64, gzip, re
+
+          path = Path('prototype/aquarium_fishing_prototype_reset_button.html')
+          wrapper = path.read_text(encoding='utf-8')
+          m = re.search(r"atob\('([^']+)'\)", wrapper)
+          if not m:
+              raise SystemExit('compressed prototype payload not found')
+
+          html = gzip.decompress(base64.b64decode(m.group(1))).decode('utf-8')
+
+          old_start = """function tick(){
+           if(gameMode==='aquarium') updateAquarium();
+           if(gameMode==='fishingMap') updateFishingMap();"""
+          new_start = """const FIXED_STEP_MS=1000/60;
+          const MAX_FRAME_DELTA_MS=250;
+          let tickAccumulator=0;
+          let lastTickTime=null;
+
+          function gameStep(){
+           if(gameMode==='aquarium') updateAquarium();
+           if(gameMode==='fishingMap') updateFishingMap();"""
+
+          old_end = """ updateMoneyUI();
+           requestAnimationFrame(tick);
+          }
+          addEventListener('keydown',e=>{"""
+          new_end = """ updateMoneyUI();
+          }
+
+          function tick(now){
+           if(lastTickTime===null) lastTickTime=now;
+           const frameDelta=Math.min(MAX_FRAME_DELTA_MS,Math.max(0,now-lastTickTime));
+           lastTickTime=now;
+           tickAccumulator+=frameDelta;
+
+           // Run gameplay logic at a fixed 60 Hz regardless of monitor refresh rate.
+           let steps=0;
+           while(tickAccumulator>=FIXED_STEP_MS && steps<8){
+             gameStep();
+             tickAccumulator-=FIXED_STEP_MS;
+             steps++;
+           }
+
+           // Avoid a large catch-up burst after returning from a background tab.
+           if(steps>=8) tickAccumulator=0;
+           requestAnimationFrame(tick);
+          }
+          addEventListener('keydown',e=>{"""
+
+          if old_start not in html:
+              raise SystemExit('tick start pattern not found')
+          if old_end not in html:
+              raise SystemExit('tick end pattern not found')
+
+          html = html.replace(old_start, new_start, 1).replace(old_end, new_end, 1)
+          payload = base64.b64encode(gzip.compress(html.encode('utf-8'), compresslevel=9, mtime=0)).decode('ascii')
+          wrapper = wrapper[:m.start(1)] + payload + wrapper[m.end(1):]
+          path.write_text(wrapper, encoding='utf-8')
+      - name: Commit fixed prototype
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add prototype/aquarium_fishing_prototype_reset_button.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix prototype speed on high refresh rate displays"
+          git push
