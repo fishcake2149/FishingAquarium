@@ -435,7 +435,7 @@ window.addEventListener('blur',()=>{input.keys.clear();input.pointerDown=false})
 canvas.tabIndex=0;
 canvas.addEventListener('pointermove',pointerWorld);
 canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;pointerWorld(e);input.pointerDown=true;canvas.focus({preventScroll:true});if(buildState.active){confirmPlacement();e.preventDefault();return}if(fishing||ui.modal)return;if(targetAtPointer())return;if(cast.mode==='idle'&&startCast())e.preventDefault()});
-canvas.addEventListener('pointerup',e=>{if(e.button!==0)return;pointerWorld(e);input.pointerDown=false;if(fishing)return;if(buildState.active)return;if(cast.mode==='charging'){releaseCast();return}if(cast.mode==='waiting')return;handleWorldClick()});
+canvas.addEventListener('pointerup',e=>{if(e.button!==0)return;pointerWorld(e);input.pointerDown=false;if(fishing)return;if(buildState.active)return;if(cast.mode==='charging'){releaseCast();return}if(cast.mode==='waiting'){resetCast();showToast('찌를 회수했습니다.');return}handleWorldClick()});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 dom.fishingOverlay.addEventListener('pointerdown',e=>{if(e.button===0)input.pointerDown=true});dom.fishingOverlay.addEventListener('pointerup',e=>{if(e.button===0)input.pointerDown=false});dom.iceBombButton.addEventListener('pointerdown',e=>{e.stopPropagation();input.pointerDown=false;useIceBomb()});dom.modalClose.addEventListener('click',()=>closeModal());dom.modalBackdrop.addEventListener('click',()=>closeModal());
 document.querySelectorAll('[data-panel]').forEach(btn=>btn.addEventListener('click',()=>{const p=btn.dataset.panel;if(p==='inventory')openInventory();else if(p==='codex')openCodex();else if(p==='equipment')openEquipment();else if(p==='aquarium')openAquariumStatus()}));
