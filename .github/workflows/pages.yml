@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - 'index.html'
-      - 'prototype/v2/**'
+      - 'prototype/v3/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
