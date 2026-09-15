@@ -1,10 +1,11 @@
-name: Apply v3.5 bus stop road
+name: Apply v3.5 bus road and stair vegetation
 
 on:
   push:
     branches: [main]
     paths:
       - '.github/workflows/apply-v35-bus-road.yml'
+      - 'tools/apply_v35_bus_road_trees.py'
   workflow_dispatch:
 
 permissions:
@@ -18,63 +19,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Add natural road above bus stop
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import re
-
-          p=Path('prototype/v3/game-v31-source.js')
-          s=p.read_text(encoding='utf-8')
-
-          marker="const busShelter=rect(4*TILE,11*TILE,5*TILE,2.4*TILE);"
-          road_geom=r'''const busShelter=rect(4*TILE,11*TILE,5*TILE,2.4*TILE);
-function upperRoadY(tx){
-  if(tx<=11)return 8.75+.12*Math.sin(tx*.7);
-  if(tx<=17){const t=(tx-11)/6;return lerp(8.75,6.35,t)+.08*Math.sin(tx*.9)}
-  const t=clamp((tx-17)/4.8,0,1);return lerp(6.35,4.25,t);
-}
-function isUpperRoadZone(x,y){
-  const tx=x/TILE,ty=y/TILE;if(tx<1.7||tx>22.2)return false;
-  if(Math.abs(ty-upperRoadY(tx))<1.55)return true;
-  return tx>=3.1&&tx<=10.8&&ty>=9.25&&ty<=11.15;
-}'''
-          if 'function upperRoadY' not in s:
-              s=s.replace(marker,road_geom,1)
-
-          # Keep trees away from the roadway and bus pull-off.
-          s,n=re.subn(r"(const trees=Array\.from\(\{length:62\}.*?\.filter\(t=>)(.*?)(\);)",lambda m:m.group(1)+m.group(2)+"&&!isUpperRoadZone(t.x,t.y)"+m.group(3),s,count=1,flags=re.S)
-          assert n==1, f'tree filter patch {n}'
-
-          draw_road=r'''function drawUpperRoad(){
-  ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
-  const curve=()=>{ctx.beginPath();for(let tx=1.9,i=0;tx<=21.8;tx+=.28,i++){const x=tx*TILE-camera.x,y=upperRoadY(tx)*TILE-camera.y;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}};
-  // gravel shoulder first, then the dark rural asphalt surface
-  curve();ctx.strokeStyle='#a99372';ctx.lineWidth=82;ctx.stroke();
-  curve();ctx.strokeStyle='#555b5c';ctx.lineWidth=64;ctx.stroke();
-  curve();ctx.strokeStyle='rgba(210,219,210,.13)';ctx.lineWidth=3;ctx.stroke();
-  // worn center line follows the bend instead of cutting across the terrain
-  curve();ctx.setLineDash([30,22]);ctx.lineDashOffset=-10;ctx.strokeStyle='#d7c985';ctx.lineWidth=3;ctx.stroke();ctx.setLineDash([]);
-
-  // a shallow roadside pull-off makes the shelter feel attached to the road
-  const bay=()=>{ctx.beginPath();ctx.moveTo(3.2*TILE-camera.x,9.35*TILE-camera.y);ctx.bezierCurveTo(4.4*TILE-camera.x,10.25*TILE-camera.y,8.8*TILE-camera.x,10.35*TILE-camera.y,10.7*TILE-camera.x,9.1*TILE-camera.y)};
-  bay();ctx.strokeStyle='#a99372';ctx.lineWidth=50;ctx.stroke();bay();ctx.strokeStyle='#555b5c';ctx.lineWidth=34;ctx.stroke();
-  // subtle roadside stones/grass break up the edge
-  for(let i=0;i<12;i++){const tx=2.4+i*1.48,side=i%2?-1:1,y=(upperRoadY(tx)+side*1.35)*TILE-camera.y,x=tx*TILE-camera.x;ctx.fillStyle=i%3===0?'#78806f':'#6d8e5e';ctx.fillRect(Math.round(x),Math.round(y),5+(i%2)*3,3+(i%3));}
-  ctx.restore();
-}
-'''
-          if 'function drawUpperRoad()' not in s:
-              s=s.replace('function drawVillageGround(){',draw_road+'function drawVillageGround(){',1)
-
-          old="drawLandMass(UPPER_LAND,'#77a56b','#4c6548',26);\n  drawLandMass(LOWER_LAND,'#86b474','#577451',16);\n  drawNarrowStairs();"
-          new="drawLandMass(UPPER_LAND,'#77a56b','#4c6548',26);\n  drawLandMass(LOWER_LAND,'#86b474','#577451',16);\n  drawUpperRoad();\n  drawNarrowStairs();"
-          assert old in s, 'ground insertion point missing'
-          s=s.replace(old,new,1)
-
-          p.write_text(s,encoding='utf-8')
-          PY
+      - name: Apply road, tile paths, and conifers
+        run: python tools/apply_v35_bus_road_trees.py
 
       - name: Syntax check
         run: node --check prototype/v3/game-v31-source.js
@@ -87,6 +33,6 @@ function isUpperRoadZone(x,y){
           if git diff --cached --quiet; then
             echo "No changes"
           else
-            git commit -m "Add natural road above bus stop"
+            git commit -m "Add bus road, grid paths, and stair conifers"
             git push
           fi
