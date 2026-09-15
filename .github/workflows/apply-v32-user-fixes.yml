@@ -1,0 +1,154 @@
+name: Apply v3.2 gameplay and map fixes
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-v32-user-fixes.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply requested fixes
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          path=Path('prototype/v3/game-v31-source.js')
+          s=path.read_text(encoding='utf-8')
+
+          def replace_once(old,new,label):
+              global s
+              if old not in s:
+                  raise SystemExit(f'missing patch target: {label}')
+              s=s.replace(old,new,1)
+
+          # 1) Keep the player sprite out of the pond visually, not just its center point.
+          replace_once(
+              "function getWaterDepth(x,y){if(state.scene!=='village')return null;const n=pondNorm(x,y);if(n>1)return null;if(n>=.72)return'near';if(n>=.42)return'mid';return'far'}\nfunction isSolidVillage(x,y,r=10){const s=sceneSize();if(x-r<0||y-r<0||x+r>s.w||y+r>s.h)return true;if(pondNorm(x,y)<1.01)return true;if(buildings.some(b=>circleRectHit(x,y,r,tileRect(b))))return true;if(rocks.some(o=>circleRectHit(x,y,r,o)))return true;if(circleRectHit(x,y,r,busShelter))return true;return false}",
+              "function getWaterDepth(x,y){if(state.scene!=='village')return null;const n=pondNorm(x,y);if(n>1)return null;if(n>=.72)return'near';if(n>=.42)return'mid';return'far'}\nfunction playerTouchesPond(x,y,r=18){const d=r*.72;return [[0,0],[r,0],[-r,0],[0,r],[0,-r],[d,d],[d,-d],[-d,d],[-d,-d]].some(([ox,oy])=>pondNorm(x+ox,y+oy)<1.018)}\nfunction isSolidVillage(x,y,r=10){const s=sceneSize();if(x-r<0||y-r<0||x+r>s.w||y+r>s.h)return true;if(playerTouchesPond(x,y,Math.max(17,r)))return true;if(buildings.some(b=>circleRectHit(x,y,r,tileRect(b))))return true;if(rocks.some(o=>circleRectHit(x,y,r,o)))return true;if(circleRectHit(x,y,r,busShelter))return true;return false}",
+              'pond collision')
+
+          # 2) Real manager room doorway and stronger room geometry.
+          replace_once(
+              "const aquariumTank=rect(9*TILE,5*TILE,15*TILE,5*TILE),managerRoom=rect(46*TILE,4*TILE,13*TILE,10*TILE),managerDesk=rect(50*TILE,7*TILE,3*TILE,2*TILE),aquariumExit=rect(4*TILE,27*TILE,3*TILE,2*TILE),managerWalls=[rect(46*TILE,4*TILE,13*TILE,.35*TILE),rect(46*TILE,4*TILE,.35*TILE,10*TILE),rect(58.65*TILE,4*TILE,.35*TILE,10*TILE),rect(46*TILE,13.65*TILE,4*TILE,.35*TILE),rect(53*TILE,13.65*TILE,6*TILE,.35*TILE)];",
+              "const aquariumTank=rect(9*TILE,5*TILE,15*TILE,5*TILE),managerRoom=rect(46*TILE,4*TILE,13*TILE,10*TILE),managerDesk=rect(50*TILE,7*TILE,3*TILE,2*TILE),aquariumExit=rect(4*TILE,27*TILE,3*TILE,2*TILE),managerDoor=rect(50*TILE,13.58*TILE,3*TILE,.42*TILE),managerWalls=[rect(46*TILE,4*TILE,13*TILE,.42*TILE),rect(46*TILE,4*TILE,.42*TILE,10*TILE),rect(58.58*TILE,4*TILE,.42*TILE,10*TILE),rect(46*TILE,13.58*TILE,4*TILE,.42*TILE),rect(53*TILE,13.58*TILE,6*TILE,.42*TILE)];",
+              'manager room geometry')
+
+          # 3) Shop counter service from the customer side.
+          replace_once(
+              "const shopCounter=rect(8*TILE,7*TILE,18*TILE,2*TILE),shopExit=rect(15*TILE,21*TILE,4*TILE,2*TILE);\nconst shopShelves=[rect(4*TILE,4*TILE,3*TILE,9*TILE),rect(27*TILE,4*TILE,3*TILE,9*TILE),rect(5*TILE,15*TILE,7*TILE,2*TILE),rect(22*TILE,15*TILE,7*TILE,2*TILE)];",
+              "const shopCounter=rect(8*TILE,7*TILE,18*TILE,2*TILE),shopServiceZone=rect(9*TILE,9*TILE,16*TILE,2.35*TILE),shopExit=rect(15*TILE,21*TILE,4*TILE,2*TILE);\nconst shopShelves=[rect(4*TILE,4*TILE,3*TILE,9*TILE),rect(27*TILE,4*TILE,3*TILE,9*TILE),rect(5*TILE,15*TILE,7*TILE,2*TILE),rect(22*TILE,15*TILE,7*TILE,2*TILE)];",
+              'shop service zone')
+          s=re.sub(r"function shopObjectAt\(x,y\)\{.*?return null\}","function shopObjectAt(x,y){if(state.scene!=='shop')return null;const customerSide=rectContains(shopServiceZone,state.player.x,state.player.y,18);const clickedCounter=rectContains(shopCounter,x,y,24);const clickedMarco=dist(x,y,shopMarco.x,shopMarco.y)<92;if(customerSide&&(clickedCounter||clickedMarco))return{id:'shopService'};if(rectContains(shopExit,x,y,12)&&dist(state.player.x,state.player.y,17*TILE,21*TILE)<130)return{id:'shopExit'};return null}",s,count=1)
+          replace_once("if(t.id==='shopMarco'){openShop();return}","if(t.id==='shopService'){openShop();return}",'shop interaction handler')
+          s=s.replace("else if(state.scene==='shop'){if(dist(state.player.x,state.player.y,shopMarco.x,shopMarco.y)<100)text='좌클릭 · 마르코와 거래';else if(rectContains(shopExit,state.player.x,state.player.y,90))text='좌클릭 · 상점 밖으로'}","else if(state.scene==='shop'){if(rectContains(shopServiceZone,state.player.x,state.player.y,22))text='좌클릭 · 계산대에서 상점 이용';else if(rectContains(shopExit,state.player.x,state.player.y,90))text='좌클릭 · 상점 밖으로'}",1)
+
+          # 4) Move the resident that spawned/returned inside a house.
+          s=s.replace("{id:'resident3',name:'주민',x:29*TILE,y:57*TILE","{id:'resident3',name:'주민',x:38*TILE,y:58*TILE",1)
+          s=s.replace("case'resident3':return h<15?{x:29*TILE,y:57*TILE}:{x:38*TILE,y:43*TILE}","case'resident3':return h<15?{x:38*TILE,y:58*TILE}:{x:38*TILE,y:43*TILE}",1)
+
+          # 5) Restore the pre-overhaul fishing feel: same one-button inertia, old fish inertia, old gauge gain/loss, and doubled Catch Zone scale.
+          s=re.sub(r"function startFishing\(s\)\{.*?\}\nfunction updateFishing\(dt\)\{.*?\}\nfunction useIceBomb",'''function startFishing(s){
+            const rod=RODS[state.equipment.rod]?.barMult||1,bait=state.equipment.bait==='wideBait'?1.2:1;
+            const legacyZone=s.difficulty<=1?.60:s.difficulty===2?.58:.56;
+            const base=pattern(s).speed;
+            fishing={species:s,barAngle:0,barSpeed:-BAR_ACCEL.releaseStartSpeed,fishAngle:Math.random()*Math.PI*2,fishVel:(Math.random()<.5?-1:1)*base,fishTarget:0,gauge:50,zone:clamp(legacyZone*rod*bait,.42,1.20),ice:0,result:null,resultTimer:0};
+            fishing.fishTarget=fishing.fishVel;
+            cast.mode='bite';dom.fishingSpecies.textContent=s.name;dom.fishingDifficulty.textContent=`난이도 ${s.difficulty}`;dom.iceBombCount.textContent=`×${itemCount('iceBomb')}`;canvas.style.filter='blur(5px) brightness(.72)';dom.fishingOverlay.classList.remove('hidden')
+          }
+          function updateFishing(dt){
+            if(!fishing)return;if(fishing.result){fishing.resultTimer-=dt;if(fishing.resultTimer<=0)finishFishing();return}
+            const hold=input.pointerDown;
+            if(hold){
+              if(fishing.barSpeed<0)fishing.barSpeed=Math.min(0,fishing.barSpeed+BAR_ACCEL.pressTurnAccel*dt);
+              else if(fishing.barSpeed<BAR_ACCEL.pressStartSpeed)fishing.barSpeed=Math.min(BAR_ACCEL.pressStartSpeed,fishing.barSpeed+BAR_ACCEL.pressTurnAccel*dt);
+              else fishing.barSpeed=Math.min(BAR_ACCEL.maxSpeed,fishing.barSpeed+BAR_ACCEL.pressHoldAccel*dt);
+            }else{
+              if(fishing.barSpeed>0)fishing.barSpeed=Math.max(0,fishing.barSpeed-BAR_ACCEL.releaseTurnAccel*dt);
+              else if(fishing.barSpeed>-BAR_ACCEL.releaseStartSpeed)fishing.barSpeed=Math.max(-BAR_ACCEL.releaseStartSpeed,fishing.barSpeed-BAR_ACCEL.releaseTurnAccel*dt);
+              else fishing.barSpeed=Math.max(-BAR_ACCEL.maxSpeed,fishing.barSpeed-BAR_ACCEL.releaseHoldAccel*dt);
+            }
+            fishing.barAngle=normalizeAngle(fishing.barAngle+fishing.barSpeed*dt);
+            const frames=dt*60;
+            const reverseChance=1-Math.pow(1-.010,frames),varyChance=1-Math.pow(1-.013,frames);
+            if(Math.random()<reverseChance)fishing.fishTarget*=-1;
+            if(Math.random()<varyChance){const base=Math.max(.006*60,Math.abs(fishing.fishTarget));const varied=Math.min(.033*60,Math.max(.006*60,base+(Math.random()-.5)*(.010*60)));fishing.fishTarget=Math.sign(fishing.fishTarget||1)*varied}
+            fishing.fishTarget=clamp(fishing.fishTarget,-.033*60,.033*60);
+            const inertia=1-Math.pow(1-.085,frames);fishing.fishVel+=(fishing.fishTarget-fishing.fishVel)*inertia;
+            const slow=fishing.ice>0?.32:1;if(fishing.ice>0)fishing.ice=Math.max(0,fishing.ice-dt);
+            fishing.fishAngle=normalizeAngle(fishing.fishAngle+fishing.fishVel*slow*dt);
+            const inside=angleDiff(fishing.barAngle+fishing.zone/2,fishing.fishAngle)<fishing.zone/2;
+            fishing.gauge=clamp(fishing.gauge+(inside?19.2:-9.6)*dt,0,100);dom.catchFill.style.width=`${fishing.gauge}%`;
+            if(fishing.gauge>=100)resolveFishing(true);else if(fishing.gauge<=0)resolveFishing(false)
+          }
+          function useIceBomb''',s,count=1,flags=re.S)
+
+          # 6) Add visible height/elevation terraces before paths are drawn.
+          old="ctx.fillStyle='#6d9668';ctx.fillRect(0,220,CONFIG.villageCols*TILE,CONFIG.villageRows*TILE-220);\n  for(const [key] of pathTiles)"
+          new="""ctx.fillStyle='#709a65';ctx.fillRect(0,220,CONFIG.villageCols*TILE,24*TILE-220);
+          ctx.fillStyle='#78a469';ctx.fillRect(0,24*TILE,CONFIG.villageCols*TILE,19*TILE);
+          ctx.fillStyle='#82ae70';ctx.fillRect(0,43*TILE,CONFIG.villageCols*TILE,(CONFIG.villageRows-43)*TILE);
+          for(const y of [24*TILE,43*TILE]){ctx.fillStyle='#4f6f50';ctx.fillRect(0,y-6,CONFIG.villageCols*TILE,18);ctx.fillStyle='#6f8f5d';ctx.fillRect(0,y-6,CONFIG.villageCols*TILE,5);ctx.fillStyle='rgba(47,58,42,.28)';for(let x=0;x<CONFIG.villageCols*TILE;x+=32)ctx.fillRect(x,y+4,22,5)}
+          for(const [sx,sy] of [[47,24],[60,43],[32,43]]){const x=sx*TILE,y=sy*TILE;ctx.fillStyle='#c7aa74';for(let i=0;i<4;i++){ctx.fillRect(x-1.5*TILE,y-10+i*5,3*TILE,5);ctx.fillStyle=i%2?'#b99662':'#c7aa74'}}
+          for(const [key] of pathTiles)"""
+          replace_once(old,new,'terrain elevation')
+
+          # 7) Redraw player/NPCs with persistent facial pixels; eyes are painted last so walk frames cannot cover them.
+          s=re.sub(r"function drawPerson\(x,y,style,dir,moving,name,isPlayer=false\)\{.*?\}\nfunction drawEntities",'''function drawPerson(x,y,style,dir,moving,name,isPlayer=false){
+            const s=w2s(x,y);if(s.x<-55||s.y<-75||s.x>VIEW.w+55||s.y>VIEW.h+75)return;
+            const frame=moving?Math.floor(performance.now()/140)%2:0,bob=moving?(frame?1:-1):0,step=moving?(frame?3:-3):0,skin=style.skin||'#e2b18c',hair=style.hair||'#49352f',body=style.body||'#416a91',accent=style.accent||'#fff';
+            ctx.save();ctx.translate(Math.round(s.x),Math.round(s.y+bob));ctx.fillStyle='rgba(26,31,26,.34)';ctx.beginPath();ctx.ellipse(0,20,15,6,0,0,Math.PI*2);ctx.fill();
+            if(isPlayer){ctx.fillStyle='#4c3729';if(dir==='up')ctx.fillRect(-11,-7,22,20);else if(dir==='left')ctx.fillRect(7,-6,8,18);else if(dir==='right')ctx.fillRect(-15,-6,8,18);else{ctx.fillRect(-12,-3,5,14);ctx.fillRect(7,-3,5,14)}}
+            ctx.fillStyle='#342820';ctx.fillRect(-10,-24,20,21);ctx.fillStyle=skin;ctx.fillRect(-8,-21,16,15);ctx.fillStyle=hair;ctx.fillRect(-10,-26,20,8);ctx.fillRect(-10,-21,4,9);ctx.fillRect(6,-21,4,9);ctx.fillRect(-6,-28,12,3);
+            ctx.fillStyle='#33271f';ctx.fillRect(-11,-5,22,23);ctx.fillStyle=body;ctx.fillRect(-9,-3,18,19);
+            if(isPlayer){ctx.fillStyle='#f1ead4';ctx.fillRect(-9,-3,18,7);ctx.fillRect(-12,0,4,11);ctx.fillRect(8,0,4,11);ctx.fillStyle='#416a91';ctx.fillRect(-6,3,12,14);ctx.fillRect(-8,1,3,15);ctx.fillRect(5,1,3,15);ctx.fillStyle='#d8c06d';ctx.fillRect(-5,5,2,2);ctx.fillRect(3,5,2,2);ctx.fillStyle='#315678';ctx.fillRect(-5,9,10,2)}else{ctx.fillStyle=accent;ctx.fillRect(-8,0,16,5);ctx.fillStyle=skin;ctx.fillRect(-12,1,3,10);ctx.fillRect(9,1,3,10)}
+            ctx.fillStyle='#3a2b23';ctx.fillRect(-8+step,16,6,10);ctx.fillRect(2-step,16,6,10);ctx.fillStyle=isPlayer?'#5d3f2a':'#4a3528';ctx.fillRect(-9+step,24,7,5);ctx.fillRect(2-step,24,7,5);
+            if(dir!=='up'){const eyeShift=dir==='left'?-2:dir==='right'?2:0;ctx.fillStyle='#f7f1df';if(isPlayer){ctx.fillRect(-5+eyeShift,-16,4,3);ctx.fillRect(2+eyeShift,-16,4,3)}ctx.fillStyle='#26231f';ctx.fillRect(-4+eyeShift,-15,2,2);ctx.fillRect(3+eyeShift,-15,2,2);ctx.fillStyle='#b86f61';ctx.fillRect(-1+eyeShift,-10,3,1)}
+            ctx.restore();if(name)pixelText(name,s.x,s.y-35,9,'#fff0bd','center')
+          }
+          function drawEntities''',s,count=1,flags=re.S)
+
+          # 8) Proper depth sorting in the village and remove floating labels under every house.
+          s=re.sub(r"function drawVillage\(\)\{.*?\}\n\nfunction drawAquarium",'''function drawVillage(){
+            drawVillageGround();drawCastStuff();
+            const list=[];
+            for(const b of buildings){const r=tileRect(b);list.push({y:r.y+r.h,fn:()=>drawBuilding(b)})}
+            for(const r of rocks)list.push({y:r.y+r.h,fn:()=>drawRock(r)});
+            for(const t of trees)list.push({y:t.y+40,fn:()=>drawTree(t)});
+            for(const n of npcs)list.push({y:n.y,fn:()=>drawPerson(n.x,n.y,n.style,n.dir,n.moving,n.id.startsWith('resident')?null:n.name,false)});
+            list.push({y:state.player.y,fn:()=>drawPerson(state.player.x,state.player.y,{hair:'#4b342c',body:'#416a91',accent:'#f1ead4',skin:'#efc29d'},state.player.dir,input.keys.size>0&&!ui.modal&&!buildState.active,null,true)});
+            list.sort((a,b)=>a.y-b.y);for(const e of list)e.fn()
+          }
+
+          function drawAquarium''',s,count=1,flags=re.S)
+
+          # 9) Visually make the staff-only area a separate room with a real doorway/sign.
+          s=re.sub(r"function drawManagerRoom\(\)\{.*?\}\nfunction drawPlaced",'''function drawManagerRoom(){
+            const r=w2s(managerRoom.x,managerRoom.y);ctx.fillStyle='#9d744d';ctx.fillRect(r.x,r.y,managerRoom.w,managerRoom.h);
+            for(let y=0;y<managerRoom.h;y+=TILE){ctx.fillStyle=(y/TILE)%2?'rgba(128,88,53,.16)':'rgba(255,228,174,.08)';ctx.fillRect(r.x,r.y+y,managerRoom.w,TILE)}
+            for(const w of managerWalls){const s=w2s(w.x,w.y);ctx.fillStyle='#493525';ctx.fillRect(s.x,s.y,w.w,w.h);ctx.fillStyle='#76533a';ctx.fillRect(s.x,s.y,w.w,Math.min(5,w.h))}
+            const door=w2s(managerDoor.x,managerDoor.y);ctx.fillStyle='#3d2b20';ctx.fillRect(door.x-5,door.y-8,managerDoor.w+10,12);ctx.fillStyle='#815a3c';ctx.fillRect(door.x+7,door.y-44,managerDoor.w*.72,40);ctx.fillStyle='#d9b764';ctx.fillRect(door.x+managerDoor.w*.72,door.y-25,4,4);pixelText('관계자 외 출입금지',door.x+managerDoor.w/2,door.y-54,9,'#ffe3a1','center');
+            const d=w2s(managerDesk.x,managerDesk.y);ctx.fillStyle='#65432b';ctx.fillRect(d.x,d.y,managerDesk.w,managerDesk.h);ctx.fillStyle='#d9bc79';ctx.fillRect(d.x+14,d.y+10,44,28);ctx.fillStyle='#b99a61';ctx.fillRect(d.x+68,d.y+10,14,14)
+          }
+          function drawPlaced''',s,count=1,flags=re.S)
+          s=s.replace("if(rectContains(managerDesk,x,y,10)){const qx=clamp(state.player.x,managerDesk.x,managerDesk.x+managerDesk.w),qy=clamp(state.player.y,managerDesk.y,managerDesk.y+managerDesk.h);if(dist(state.player.x,state.player.y,qx,qy)<CONFIG.interactDistance)return{id:'manager'}}","if(rectContains(managerDesk,x,y,10)&&rectContains(managerRoom,state.player.x,state.player.y)){const qx=clamp(state.player.x,managerDesk.x,managerDesk.x+managerDesk.w),qy=clamp(state.player.y,managerDesk.y,managerDesk.y+managerDesk.h);if(dist(state.player.x,state.player.y,qx,qy)<CONFIG.interactDistance)return{id:'manager'}}",1)
+
+          path.write_text(s,encoding='utf-8')
+
+          # Switch away from the compressed loader now that v3.2 has a readable, directly testable source.
+          index=Path('prototype/v3/index.html')
+          h=index.read_text(encoding='utf-8')
+          h=re.sub(r'<script src="\./game-v31-loader\.js\?v=[^"]+"></script>','<script src="./game-v31-source.js?v=20260915-2"></script>',h)
+          index.write_text(h,encoding='utf-8')
+      - name: Syntax check
+        run: node --check prototype/v3/game-v31-source.js
+      - name: Commit v3.2 fixes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add prototype/v3/game-v31-source.js prototype/v3/index.html
+          git commit -m 'Fix v3.2 collisions shop elevation manager room and fishing feel'
+          git push
