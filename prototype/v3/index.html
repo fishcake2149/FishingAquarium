@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#132425" />
+  <title>낚시 아쿠아리움 · 연못 마을</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main id="app">
+    <section id="gameShell" class="game-shell" aria-label="낚시 아쿠아리움 게임 화면">
+      <canvas id="worldCanvas" width="1280" height="720"></canvas>
+
+      <div id="hud" class="hud-layer">
+        <div class="hud-left">
+          <div class="glass-panel time-card">
+            <div id="dateText" class="date-text">1일</div>
+            <div id="timeText" class="time-text">08:00</div>
+            <div id="weatherText" class="weather-text">☀ 맑음</div>
+          </div>
+          <div id="questCard" class="glass-panel quest-card">
+            <span class="quest-kicker">현재 목표</span>
+            <strong id="questTitle">다시 물이 흐르도록</strong>
+            <span id="questText">브루노에게 말을 걸어 첫 수조를 확인하세요.</span>
+          </div>
+        </div>
+
+        <div class="hud-right">
+          <div class="glass-panel location-card">
+            <span id="locationText">연못 마을 · 버스정류장</span>
+            <span id="moneyText" class="money">0G</span>
+          </div>
+          <div class="hud-buttons glass-panel">
+            <button data-panel="inventory">🎒<span>가방</span></button>
+            <button data-panel="codex">📖<span>도감</span></button>
+            <button data-panel="equipment">🎣<span>장비</span></button>
+            <button data-panel="aquarium">🐠<span>아쿠아리움</span></button>
+            <button id="buildButton" class="scene-only hidden">🛠<span>배치</span></button>
+          </div>
+        </div>
+
+        <div id="bagHud" class="glass-panel bag-hud">
+          <div class="bag-head"><strong>가방</strong><span id="bagUsage">0/9</span></div>
+          <div id="bagGrid" class="bag-grid"></div>
+        </div>
+
+        <div id="interactionHint" class="interaction-hint hidden"></div>
+
+        <div id="castGauge" class="cast-gauge hidden">
+          <div class="cast-title"><strong>캐스팅</strong><span id="castDepthHint">수심을 노려보세요</span></div>
+          <div class="cast-track"><div id="castFill" class="cast-fill"></div><div id="castMarker" class="cast-marker"></div></div>
+          <div class="cast-labels"><span>가까이</span><span>중간</span><span>멀리</span></div>
+        </div>
+
+        <div id="buildBar" class="build-bar glass-panel hidden">
+          <strong id="buildName">배치 중</strong>
+          <span id="buildStatus">좌클릭으로 설치</span>
+          <button id="rotateBuild">↻ 회전</button>
+          <button id="cancelBuild">취소</button>
+        </div>
+
+        <div id="toast" class="toast hidden"></div>
+        <button id="resetButton" class="reset-button" title="저장 데이터 초기화">↻</button>
+      </div>
+
+      <div id="modalLayer" class="modal-layer hidden" aria-live="polite">
+        <div id="modalBackdrop" class="modal-backdrop"></div>
+        <section id="modalCard" class="modal-card">
+          <button id="modalClose" class="modal-close" aria-label="닫기">×</button>
+          <div id="modalContent"></div>
+        </section>
+      </div>
+
+      <div id="fishingOverlay" class="fishing-overlay hidden">
+        <canvas id="fishingCanvas" width="560" height="560"></canvas>
+        <div class="fishing-panel glass-panel">
+          <div class="fish-row"><strong id="fishingSpecies">붕어</strong><span id="fishingDifficulty">난이도 1</span></div>
+          <div class="catch-track"><div id="catchFill"></div></div>
+          <div class="fishing-hint">좌클릭 홀드 = 시계 방향 · 떼기 = 반시계 방향</div>
+          <button id="iceBombButton">❄ 얼음 폭탄 <span id="iceBombCount">×0</span></button>
+        </div>
+      </div>
+
+      <div id="sceneFade" class="scene-fade"></div>
+    </section>
+    <p class="controls">WASD 이동 · 좌클릭 상호작용/낚시 · ESC 닫기</p>
+  </main>
+  <script src="./game.js"></script>
+</body>
+</html>
