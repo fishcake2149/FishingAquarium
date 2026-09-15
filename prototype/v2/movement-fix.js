@@ -2,8 +2,8 @@
   'use strict';
 
   // Robust movement layer for the HTML prototype.
-  // Keeps gameplay WASD-only, but does not depend on the original input Set
-  // receiving keyboard events correctly in every browser/focus state.
+  // Keeps gameplay WASD-only and adds transition recovery so the player can
+  // never remain trapped inside a collider after entering/leaving a scene.
   const canvasEl = document.getElementById('gameCanvas');
   const shellEl = document.getElementById('gameShell');
   if (!canvasEl || !shellEl) return;
@@ -38,13 +38,11 @@
     e.preventDefault();
   };
 
-  // Capture before focused HUD/buttons can consume the event.
   document.addEventListener('keydown', down, true);
   document.addEventListener('keyup', up, true);
   window.addEventListener('keydown', down, true);
   window.addEventListener('keyup', up, true);
 
-  // Make the actual game canvas a keyboard focus target.
   canvasEl.tabIndex = 0;
   const focusCanvas = () => {
     try { canvasEl.focus({ preventScroll: true }); }
@@ -64,11 +62,59 @@
     if (document.hidden) clearHeld();
   });
 
-  // Replace only the movement reader. Collision, speed, direction and every
-  // other gameplay rule remain the same as the integrated prototype.
+  function resetTransientMovementState() {
+    clearHeld();
+    try { input.pointerDown = false; } catch (_) {}
+    try {
+      cast.mode = 'idle';
+      cast.landing = null;
+      cast.depth = null;
+      if (dom && dom.castGaugeWrap) dom.castGaugeWrap.classList.add('hidden');
+    } catch (_) {}
+    setTimeout(focusCanvas, 0);
+  }
+
+  // Find the closest legal position around a preferred spawn point. This is
+  // also used to recover old saves that happen to be inside changed geometry.
+  function placeOnNearestFree(preferredX, preferredY) {
+    const candidates = [[0,0]];
+    const radii = [16, 24, 32, 48, 64, 80, 96];
+    for (const r of radii) {
+      candidates.push([0,r],[r,0],[0,-r],[-r,0],[r,r],[r,-r],[-r,r],[-r,-r]);
+    }
+    for (const [ox, oy] of candidates) {
+      const x = preferredX + ox;
+      const y = preferredY + oy;
+      try {
+        if (!isSolidAt(x, y, 10)) {
+          state.player.x = x;
+          state.player.y = y;
+          return true;
+        }
+      } catch (_) {}
+    }
+    return false;
+  }
+
+  function recoverIfEmbedded() {
+    try {
+      if (!isSolidAt(state.player.x, state.player.y, 10)) return;
+      const px = state.player.x;
+      const py = state.player.y;
+      if (!placeOnNearestFree(px, py)) {
+        if (state.scene === 'aquarium') placeOnNearestFree(4.5 * CONFIG.tile, 13.5 * CONFIG.tile);
+        else placeOnNearestFree(13.5 * CONFIG.tile, 11.6 * CONFIG.tile);
+      }
+    } catch (_) {}
+  }
+
+  // Replace only the movement reader. Collision, speed and direction remain
+  // those of the integrated prototype, with one extra embedded-position guard.
   try {
     updatePlayer = function patchedUpdatePlayer(dt) {
       if (ui.modal || fishing || cast.mode === 'charging' || cast.mode === 'waiting') return;
+
+      recoverIfEmbedded();
 
       let dx = 0, dy = 0;
       if (held.has('KeyW')) dy -= 1;
@@ -88,7 +134,6 @@
       const nx = state.player.x + dx * step;
       const ny = state.player.y + dy * step;
 
-      // Axis-separated collision preserves smooth wall sliding.
       if (!isSolidAt(nx, state.player.y, 10)) state.player.x = nx;
       if (!isSolidAt(state.player.x, ny, 10)) state.player.y = ny;
     };
@@ -96,5 +141,34 @@
     console.error('WASD movement patch failed to install', err);
   }
 
-  window.__FISHING_AQUARIUM_MOVEMENT_FIX__ = '2026-09-15-v2';
+  // Scene transitions used to leave the movement layer in a stale state on
+  // some runs. Wrap both transitions and explicitly place the player on a free
+  // tile immediately outside/inside the door.
+  try {
+    const originalEnterAquarium = enterAquarium;
+    enterAquarium = function patchedEnterAquarium() {
+      originalEnterAquarium();
+      resetTransientMovementState();
+      placeOnNearestFree(4.5 * CONFIG.tile, 13.5 * CONFIG.tile);
+      camera.x = 0;
+      camera.y = 0;
+      saveGame();
+    };
+
+    const originalExitAquarium = exitAquarium;
+    exitAquarium = function patchedExitAquarium() {
+      originalExitAquarium();
+      resetTransientMovementState();
+      // Put the player clearly below the aquarium facade instead of near its
+      // collision edge, then let the normal camera follow from there.
+      placeOnNearestFree(13.5 * CONFIG.tile, 11.7 * CONFIG.tile);
+      saveGame();
+    };
+  } catch (err) {
+    console.error('Scene transition movement patch failed to install', err);
+  }
+
+  // One boot-time recovery for old saves.
+  recoverIfEmbedded();
+  window.__FISHING_AQUARIUM_MOVEMENT_FIX__ = '2026-09-15-v3-transition-safe';
 })();
