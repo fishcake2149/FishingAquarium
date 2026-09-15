@@ -93,9 +93,9 @@ function addRoadH(x1,x2,y,w=2){for(let x=Math.min(x1,x2);x<=Math.max(x1,x2);x++)
 function addH(x1,x2,y,w=3){for(let x=Math.min(x1,x2);x<=Math.max(x1,x2);x++)for(let o=-Math.floor(w/2);o<=Math.floor(w/2);o++)addPathTile(x,y+o)}
 function addV(y1,y2,x,w=3){for(let y=Math.min(y1,y2);y<=Math.max(y1,y2);y++)for(let o=-Math.floor(w/2);o<=Math.floor(w/2);o++)addPathTile(x+o,y)}
 // Rural road above the bus stop. It bends by grid cells so it still belongs to the tile map.
-addRoadH(1,40,7,2);addRoadH(4,10,9,2);
+addRoadH(0,42,7,2);addRoadH(4,10,9,2);
 // Upper walking route: bus stop -> aquarium entrance -> narrow stair descent.
-addV(14,18,7,3);addH(7,23,18,3);addV(16,18,23,3);addH(23,31,20,3);addV(20,36,31,2);
+addV(14,18,7,3);addH(7,23,18,3);addV(16,18,23,3);addH(23,31,20,3);addV(20,36,31,3);
 // Lower village routes, all aligned to tile coordinates.
 addV(35,40,31,3);addH(18,101,40,3);addV(40,54,30,3);addH(18,45,54,3);addV(54,64,30,3);addH(30,45,64,3);addV(40,58,99,3);addH(92,101,58,3);
 const conifers=(()=>{
@@ -103,19 +103,31 @@ const conifers=(()=>{
   const fill=(x1,x2,y1,y2,dx,dy,phase)=>{
     let row=0;
     for(let ty=y1;ty<=y2;ty+=dy,row++){
-      const shift=(row%2)*dx*.42;
+      const shift=(row%2)*dx*.45;
       for(let tx=x1+shift;tx<=x2;tx+=dx){
-        const wobbleX=Math.sin((tx*7.3+ty*3.1+phase))*0.10;
-        const wobbleY=Math.cos((tx*4.7-ty*5.2+phase))*0.10;
-        const size=.86+((Math.sin(tx*2.2+ty*1.7+phase)+1)*.5)*.28;
+        const wobbleX=Math.sin((tx*6.4+ty*3.7+phase))*.08;
+        const wobbleY=Math.cos((tx*3.9-ty*5.1+phase))*.08;
+        const size=.98+((Math.sin(tx*2.1+ty*1.6+phase)+1)*.5)*.30;
         out.push({tx:tx+wobbleX,ty:ty+wobbleY,s:size});
       }
     }
   };
-  fill(23.5,28.1,22.5,35.6,1.18,1.13,0.4);
-  fill(34.7,39.4,22.5,35.6,1.18,1.13,2.1);
-  fill(21.9,23.0,24.0,34.8,1.15,1.18,4.2);
-  fill(40.0,41.1,24.0,34.8,1.15,1.18,5.7);
+  fill(21.8,28.4,21.5,36.4,.88,.92,.4);
+  fill(34.1,41.8,21.5,36.4,.88,.92,2.2);
+  return out;
+})();
+const darkForest=(()=>{
+  const out=[];
+  let row=0;
+  for(let ty=1.2;ty<=38;ty+=.92,row++){
+    const shift=(row%2)*.46;
+    for(let tx=.4+shift;tx<=44;tx+=.92){
+      const x=tx*TILE,y=ty*TILE;
+      if(isVillageLandPoint(x,y))continue;
+      const size=1.03+((Math.sin(tx*1.9+ty*2.4)+1)*.5)*.28;
+      out.push({tx:tx+Math.sin(tx*5.3+ty)*.07,ty:ty+Math.cos(ty*4.7-tx)*.07,s:size});
+    }
+  }
   return out;
 })();
 function nearConifer(x,y,r=10){return conifers.some(t=>dist(x,y,t.tx*TILE,t.ty*TILE)<r+14*t.s)}
@@ -294,13 +306,15 @@ function traceTilePoly(points,ox=0,oy=0){ctx.beginPath();points.forEach(([x,y],i
 function drawLandMass(poly,top,cliff='#4e6749',depth=20){traceTilePoly(poly,0,depth);ctx.fillStyle=cliff;ctx.fill();traceTilePoly(poly);ctx.fillStyle=top;ctx.fill();ctx.strokeStyle='rgba(49,72,48,.6)';ctx.lineWidth=3;ctx.stroke()}
 function drawNarrowStairs(){const x=29.55*TILE-camera.x,y=22.2*TILE-camera.y,w=3.9*TILE,h=12.5*TILE;ctx.fillStyle='#52694b';ctx.fillRect(x-18,y,w+36,h);ctx.fillStyle='#bda06d';ctx.fillRect(x,y,w,h);for(let i=0;i<19;i++){const sy=y+i*(h/19);ctx.fillStyle=i%2?'#aa8d5e':'#c7ab76';ctx.fillRect(x,sy,w,5);ctx.fillStyle='rgba(70,53,35,.22)';ctx.fillRect(x,sy+5,w,2)}ctx.fillStyle='#5c774f';for(let i=0;i<9;i++){ctx.fillRect(x-14,y+9+i*42,10,18);ctx.fillRect(x+w+4,y+28+i*42,10,18)}}
 function drawRoadTiles(){
-  ctx.save();ctx.translate(-camera.x,-camera.y);
-  for(const key of roadTiles){const[tx,ty]=key.split(',').map(Number),x=tx*TILE,y=ty*TILE;if(!visible(rect(x,y,TILE,TILE),40))continue;
-    ctx.fillStyle='#9b8a70';ctx.fillRect(x-2,y-2,TILE+4,TILE+4);
-    ctx.fillStyle=((tx+ty)%4===0)?'#555c5c':'#505758';ctx.fillRect(x,y,TILE,TILE);
-    ctx.fillStyle='rgba(221,226,216,.10)';ctx.fillRect(x+3,y+3,TILE-6,2);
-    if((ty===8&&tx%3===1)||(ty===7&&tx%3===0)||(ty===6&&tx%3===2)||(ty===5&&tx%3===1)){ctx.fillStyle='#d5c77f';ctx.fillRect(x+5,y+TILE/2-1,TILE-10,3)}
-  }
+  ctx.save();
+  const x0=-camera.x,y0=7*TILE-camera.y,w=42*TILE,h=2*TILE;
+  ctx.fillStyle='#a89473';ctx.fillRect(x0-4,y0-5,w+8,h+10);
+  ctx.fillStyle='#505758';ctx.fillRect(x0,y0,w,h);
+  ctx.fillStyle='rgba(220,225,218,.12)';ctx.fillRect(x0,y0+4,w,3);
+  ctx.fillStyle='#d9ca83';
+  for(let x=10;x<w-10;x+=46)ctx.fillRect(x0+x,y0+h/2-2,28,4);
+  ctx.fillStyle='#a89473';ctx.fillRect(4*TILE-camera.x,9*TILE-camera.y,6*TILE,2*TILE+5);
+  ctx.fillStyle='#505758';ctx.fillRect(4*TILE-camera.x,9*TILE-camera.y,6*TILE,2*TILE);
   ctx.restore();
 }
 function drawConifer(t){
@@ -313,12 +327,13 @@ function drawConifer(t){
 function drawVillageGround(){
   ctx.fillStyle='#3f5f49';ctx.fillRect(0,0,VIEW.w,VIEW.h);
   ctx.save();ctx.translate(-camera.x,-camera.y);ctx.fillStyle='#304c3d';for(let x=-180;x<CONFIG.villageCols*TILE+260;x+=320){ctx.beginPath();ctx.moveTo(x,270);ctx.lineTo(x+95,90+(Math.abs(x/320)%3)*34);ctx.lineTo(x+190,150);ctx.lineTo(x+340,270);ctx.closePath();ctx.fill()}ctx.restore();
+  for(const t of darkForest)drawConifer(t);
   drawLandMass(UPPER_LAND,'#77a56b','#4c6548',26);
   drawLandMass(LOWER_LAND,'#86b474','#577451',16);
   drawRoadTiles();
   drawNarrowStairs();
   ctx.save();ctx.translate(-camera.x,-camera.y);
-  for(const [key] of pathTiles){const[tx,ty]=key.split(',').map(Number),x=tx*TILE,y=ty*TILE;if(!visible(rect(x,y,TILE,TILE),32))continue;const n=(tx*17+ty*29)%5;ctx.fillStyle=['#c4a36d','#ceb07a','#b99a65','#d0b17a','#c6a872'][n];ctx.fillRect(x,y,TILE,TILE);ctx.strokeStyle='rgba(100,74,43,.2)';ctx.strokeRect(x+.5,y+.5,TILE-1,TILE-1);ctx.fillStyle='rgba(248,224,173,.26)';ctx.fillRect(x+4+(n*6)%18,y+6+(n*9)%17,6,3)}
+  for(const [key] of pathTiles){const[tx,ty]=key.split(',').map(Number),x=tx*TILE,y=ty*TILE;if(!visible(rect(x,y,TILE,TILE),32))continue;const n=(tx*17+ty*29)%5;ctx.fillStyle=['#d9bd82','#e1c98f','#cfb276','#e4cb91','#d6bb7f'][n];ctx.fillRect(x,y,TILE,TILE);ctx.strokeStyle='rgba(83,61,39,.38)';ctx.strokeRect(x+.5,y+.5,TILE-1,TILE-1);ctx.fillStyle='rgba(248,224,173,.26)';ctx.fillRect(x+4+(n*6)%18,y+6+(n*9)%17,6,3)}
   for(const g of grassTufts){if(!isVillageLandPoint(g.x,g.y)||pondNorm(g.x,g.y)<1.12)continue;if(pathTiles.has(`${Math.floor(g.x/TILE)},${Math.floor(g.y/TILE)}`))continue;ctx.fillStyle=g.t>.65?'#628f58':'#70a063';ctx.fillRect(Math.round(g.x),Math.round(g.y),2,5);ctx.fillRect(Math.round(g.x+4),Math.round(g.y+2),2,4)}
   for(const f of flowerPatches){if(!isVillageLandPoint(f.x,f.y)||pondNorm(f.x,f.y)<1.1)continue;if(pathTiles.has(`${Math.floor(f.x/TILE)},${Math.floor(f.y/TILE)}`))continue;ctx.fillStyle='#4e7d4e';ctx.fillRect(Math.round(f.x),Math.round(f.y),2,7);ctx.fillStyle=f.c;ctx.fillRect(Math.round(f.x-2),Math.round(f.y-2),6,4)}ctx.restore();
   drawPond();drawBusStop();
