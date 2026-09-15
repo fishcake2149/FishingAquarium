@@ -71,7 +71,7 @@ function saveGame(){try{localStorage.setItem(CONFIG.saveKey,JSON.stringify(state
 
 // --- Larger pond village world ------------------------------------------------
 const pond={cx:70*TILE,cy:54*TILE,rx:23*TILE,ry:13*TILE};
-const UPPER_LAND=[[2,7],[8,5],[18,5],[24,4],[35,6],[40,10],[40,18],[36,22],[33,22],[33,26],[29,26],[29,23],[22,23],[16,25],[8,23],[3,19]];
+const UPPER_LAND=[[0,9],[2,5],[8,3],[17,3],[24,2],[34,4],[40,7],[42,11],[41,18],[36,22],[33,22],[33,26],[29,26],[29,23],[22,23],[16,25],[8,23],[3,19]];
 const LOWER_LAND=[[28,32],[38,30],[50,32],[62,30],[76,31],[90,29],[102,33],[108,40],[106,49],[109,58],[104,66],[94,70],[82,69],[70,71],[57,68],[44,71],[30,69],[18,66],[11,59],[9,49],[12,40],[19,35]];
 function pointInPoly(tx,ty,poly){let inside=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1],cross=((yi>ty)!=(yj>ty))&&(tx<(xj-xi)*(ty-yi)/(yj-yi||1e-9)+xi);if(cross)inside=!inside}return inside}
 function isVillageLandPoint(x,y){const tx=x/TILE,ty=y/TILE;return pointInPoly(tx,ty,UPPER_LAND)||pointInPoly(tx,ty,LOWER_LAND)||(tx>=29&&tx<=33&&ty>=20&&ty<=35)}
@@ -87,17 +87,28 @@ const buildings=[
 ];
 const busShelter=rect(4*TILE,11*TILE,5*TILE,2.4*TILE);
 const rocks=[rect(20*TILE,55*TILE,1.5*TILE,1.3*TILE),rect(96*TILE,60*TILE,1.7*TILE,1.5*TILE),rect(42*TILE,66*TILE,1.3*TILE,1.2*TILE),rect(89*TILE,67*TILE,1.5*TILE,1.2*TILE),rect(103*TILE,39*TILE,1.5*TILE,1.4*TILE)];
-const pathTiles=new Set();
-const addPathTile=(x,y)=>pathTiles.add(`${x},${y}`);
+const roadTiles=new Set(),pathTiles=new Set();
+const addRoadTile=(x,y)=>roadTiles.add(`${x},${y}`),addPathTile=(x,y)=>pathTiles.add(`${x},${y}`);
+function addRoadH(x1,x2,y,w=2){for(let x=Math.min(x1,x2);x<=Math.max(x1,x2);x++)for(let o=0;o<w;o++)addRoadTile(x,y+o)}
 function addH(x1,x2,y,w=3){for(let x=Math.min(x1,x2);x<=Math.max(x1,x2);x++)for(let o=-Math.floor(w/2);o<=Math.floor(w/2);o++)addPathTile(x,y+o)}
 function addV(y1,y2,x,w=3){for(let y=Math.min(y1,y2);y<=Math.max(y1,y2);y++)for(let o=-Math.floor(w/2);o<=Math.floor(w/2);o++)addPathTile(x+o,y)}
-addH(7,27,15,3);addV(15,21,27,3);addH(27,31,21,3);addV(21,36,31,2);
+// Rural road above the bus stop. It bends by grid cells so it still belongs to the tile map.
+addRoadH(0,12,8,2);addRoadH(12,16,7,2);addRoadH(16,22,6,2);addRoadH(22,34,5,2);addRoadH(34,40,6,2);addRoadH(4,10,10,1);
+// Upper walking route: bus stop -> aquarium entrance -> narrow stair descent.
+addV(14,18,7,3);addH(7,23,18,3);addV(16,18,23,3);addH(23,31,20,3);addV(20,36,31,2);
+// Lower village routes, all aligned to tile coordinates.
 addV(35,40,31,3);addH(18,101,40,3);addV(40,54,30,3);addH(18,45,54,3);addV(54,64,30,3);addH(30,45,64,3);addV(40,58,99,3);addH(92,101,58,3);
+const conifers=[
+ {tx:26.0,ty:23.7,s:1.04},{tx:26.2,ty:25.6,s:.92},{tx:26.0,ty:27.7,s:1.12},{tx:26.2,ty:29.8,s:.96},{tx:26.1,ty:31.8,s:1.08},{tx:26.4,ty:33.6,s:.92},
+ {tx:35.8,ty:23.8,s:1.08},{tx:35.6,ty:25.8,s:.94},{tx:35.8,ty:27.8,s:1.12},{tx:35.5,ty:29.9,s:.9},{tx:35.8,ty:31.9,s:1.05},{tx:35.4,ty:33.7,s:.94},
+ {tx:24.7,ty:26.8,s:.84},{tx:37.0,ty:26.9,s:.86},{tx:24.9,ty:30.9,s:.88},{tx:36.9,ty:31.0,s:.88}
+];
+function nearConifer(x,y,r=10){return conifers.some(t=>dist(x,y,t.tx*TILE,t.ty*TILE)<r+14*t.s)}
 
 const decoRand=seeded(2219451);
 const grassTufts=Array.from({length:520},()=>({x:decoRand()*CONFIG.villageCols*TILE,y:decoRand()*CONFIG.villageRows*TILE,t:decoRand()}));
 const flowerPatches=Array.from({length:120},()=>({x:decoRand()*CONFIG.villageCols*TILE,y:(6+decoRand()*(CONFIG.villageRows-8))*TILE,c:decoRand()>.5?'#f2b7c7':'#d9b1e5'}));
-const trees=Array.from({length:62},(_,i)=>({x:(3+decoRand()*(CONFIG.villageCols-6))*TILE,y:(5+decoRand()*(CONFIG.villageRows-7))*TILE,blossom:i%3!==0,s:.85+(i%5)*.05})).filter(t=>pondNormRaw(t.x,t.y)>1.12&&!buildings.some(b=>rectContains(tileRect(b),t.x,t.y,50))&&!pathTiles.has(`${Math.floor(t.x/TILE)},${Math.floor(t.y/TILE)}`));
+const trees=Array.from({length:62},(_,i)=>({x:(3+decoRand()*(CONFIG.villageCols-6))*TILE,y:(5+decoRand()*(CONFIG.villageRows-7))*TILE,blossom:i%3!==0,s:.85+(i%5)*.05})).filter(t=>pondNormRaw(t.x,t.y)>1.12&&!buildings.some(b=>rectContains(tileRect(b),t.x,t.y,50))&&!pathTiles.has(`${Math.floor(t.x/TILE)},${Math.floor(t.y/TILE)}`)&&!roadTiles.has(`${Math.floor(t.x/TILE)},${Math.floor(t.y/TILE)}`));
 const waterSparkles=Array.from({length:86},()=>({a:decoRand()*Math.PI*2,r:.10+decoRand()*.84,p:decoRand()*Math.PI*2}));
 function pondBoundaryScale(a){return 1+.075*Math.sin(a*3+.55)+.048*Math.sin(a*5-1.15)+.032*Math.sin(a*9+.9)+.018*Math.sin(a*13-2.2)}
 function pondNormRaw(x,y){const nx=(x-pond.cx)/pond.rx,ny=(y-pond.cy)/pond.ry,a=Math.atan2(ny,nx),base=Math.hypot(nx,ny);return base/pondBoundaryScale(a)}
@@ -109,7 +120,7 @@ const shoreStones=Array.from({length:31},()=>{const a=shoreRand()*Math.PI*2,sc=p
 const lilyPads=Array.from({length:23},()=>{const a=shoreRand()*Math.PI*2,rr=.15+shoreRand()*.78,sc=pondBoundaryScale(a)*rr;return{x:pond.cx+Math.cos(a)*pond.rx*sc,y:pond.cy+Math.sin(a)*pond.ry*sc,s:5+shoreRand()*7,flower:shoreRand()>.72}});
 const pondRipples=Array.from({length:13},()=>{const a=shoreRand()*Math.PI*2,rr=.15+shoreRand()*.72,sc=pondBoundaryScale(a)*rr;return{x:pond.cx+Math.cos(a)*pond.rx*sc,y:pond.cy+Math.sin(a)*pond.ry*sc,p:shoreRand()*Math.PI*2}});
 function playerTouchesPond(x,y,r=18){const d=r*.72;return [[0,0],[r,0],[-r,0],[0,r],[0,-r],[d,d],[d,-d],[-d,d],[-d,-d]].some(([ox,oy])=>pondNorm(x+ox,y+oy)<1.018)}
-function isSolidVillage(x,y,r=10){const z=sceneSize();if(x-r<0||y-r<0||x+r>z.w||y+r>z.h)return true;if(!playerFitsVillageLand(x,y,Math.max(12,r)))return true;if(playerTouchesPond(x,y,Math.max(17,r)))return true;if(buildings.some(b=>circleRectHit(x,y,r,tileRect(b))))return true;if(rocks.some(o=>circleRectHit(x,y,r,o)))return true;if(circleRectHit(x,y,r,busShelter))return true;return false}
+function isSolidVillage(x,y,r=10){const z=sceneSize();if(x-r<0||y-r<0||x+r>z.w||y+r>z.h)return true;if(!playerFitsVillageLand(x,y,Math.max(12,r)))return true;if(playerTouchesPond(x,y,Math.max(17,r)))return true;if(buildings.some(b=>circleRectHit(x,y,r,tileRect(b))))return true;if(rocks.some(o=>circleRectHit(x,y,r,o)))return true;if(nearConifer(x,y,r))return true;if(circleRectHit(x,y,r,busShelter))return true;return false}
 
 // --- Aquarium interior --------------------------------------------------------
 const aquariumTank=rect(9*TILE,5*TILE,15*TILE,5*TILE),managerRoom=rect(46*TILE,4*TILE,13*TILE,10*TILE),managerDesk=rect(50*TILE,7*TILE,3*TILE,2*TILE),aquariumExit=rect(4*TILE,27*TILE,3*TILE,2*TILE),managerDoor=rect(50*TILE,13.58*TILE,3*TILE,.42*TILE),managerWalls=[rect(46*TILE,4*TILE,13*TILE,.42*TILE),rect(46*TILE,4*TILE,.42*TILE,10*TILE),rect(58.58*TILE,4*TILE,.42*TILE,10*TILE),rect(46*TILE,13.58*TILE,4*TILE,.42*TILE),rect(53*TILE,13.58*TILE,6*TILE,.42*TILE)];
@@ -135,7 +146,7 @@ const npcDefs=[
 {id:'resident3',name:'주민',x:31*TILE,y:57*TILE,style:{hair:'#5d4939',body:'#7891a5',accent:'#c7b56d',skin:'#d9a57d'},speed:44}
 ],npcs=npcDefs.map(d=>({...d,path:[],pathIndex:0,repath:Math.random()*2,dir:'down',moving:false}));
 const tileKey=(x,y)=>`${x},${y}`;
-function npcBlocked(tx,ty){if(tx<0||ty<0||tx>=CONFIG.villageCols||ty>=CONFIG.villageRows)return true;const x=(tx+.5)*TILE,y=(ty+.5)*TILE;if(!isVillageLandPoint(x,y))return true;if(pondNorm(x,y)<1.03)return true;if(buildings.some(b=>rectContains(tileRect(b),x,y)))return true;if(rocks.some(r=>rectContains(r,x,y)))return true;if(rectContains(busShelter,x,y))return true;return false}
+function npcBlocked(tx,ty){if(tx<0||ty<0||tx>=CONFIG.villageCols||ty>=CONFIG.villageRows)return true;const x=(tx+.5)*TILE,y=(ty+.5)*TILE;if(!isVillageLandPoint(x,y))return true;if(pondNorm(x,y)<1.03)return true;if(buildings.some(b=>rectContains(tileRect(b),x,y)))return true;if(rocks.some(r=>rectContains(r,x,y)))return true;if(nearConifer(x,y,6))return true;if(rectContains(busShelter,x,y))return true;return false}
 function findPath(sx,sy,ex,ey,max=2600){const start={x:Math.floor(sx/TILE),y:Math.floor(sy/TILE)},end={x:Math.floor(ex/TILE),y:Math.floor(ey/TILE)};if(npcBlocked(end.x,end.y))return[];const open=[{...start,g:0,f:Math.abs(end.x-start.x)+Math.abs(end.y-start.y)}],came=new Map(),score=new Map([[tileKey(start.x,start.y),0]]);let visited=0;while(open.length&&visited++<max){open.sort((a,b)=>a.f-b.f);const c=open.shift();if(c.x===end.x&&c.y===end.y){const out=[];let n={x:end.x,y:end.y};while(n.x!==start.x||n.y!==start.y){out.push({x:(n.x+.5)*TILE,y:(n.y+.5)*TILE});const p=came.get(tileKey(n.x,n.y));if(!p)break;n=p}return out.reverse()}for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=c.x+dx,ny=c.y+dy;if(npcBlocked(nx,ny))continue;const ng=c.g+1,k=tileKey(nx,ny);if(ng>=(score.get(k)??Infinity))continue;score.set(k,ng);came.set(k,{x:c.x,y:c.y});open.push({x:nx,y:ny,g:ng,f:ng+Math.abs(end.x-nx)+Math.abs(end.y-ny)})}}return[]}
 function npcTarget(n){const h=gameHour();switch(n.id){case'rohan':return h>=6&&h<19?{x:45*TILE,y:52*TILE}:{x:86*TILE,y:40*TILE};case'yotri':return isNight()?{x:96*TILE,y:57*TILE}:{x:91*TILE,y:41*TILE};case'luka':return h>=7&&h<18?{x:10*TILE,y:15*TILE}:{x:25*TILE,y:20*TILE};case'bruno':return h>=6&&h<20?{x:62*TILE,y:40*TILE}:{x:69*TILE,y:41*TILE};case'resident1':return h<12?{x:37*TILE,y:41*TILE}:{x:28*TILE,y:52*TILE};case'resident2':return h<16?{x:96*TILE,y:41*TILE}:{x:100*TILE,y:58*TILE};case'resident3':return h<15?{x:31*TILE,y:57*TILE}:{x:38*TILE,y:64*TILE};default:return{x:n.x,y:n.y}}}
 function updateNpcs(dt){if(state.scene!=='village'||ui.modal||fishing)return;for(const n of npcs){n.repath-=dt;if(n.repath<=0){n.repath=4+Math.random()*2;const t=npcTarget(n);if(t&&Number.isFinite(t.x)&&Number.isFinite(t.y)&&dist(n.x,n.y,t.x,t.y)>22){n.path=findPath(n.x,n.y,t.x,t.y);n.pathIndex=0}}const p=n.path[n.pathIndex];if(!p){n.moving=false;continue}const dx=p.x-n.x,dy=p.y-n.y,d=Math.hypot(dx,dy);if(d<3){n.pathIndex++;n.moving=false;continue}n.moving=true;if(Math.abs(dx)>Math.abs(dy))n.dir=dx<0?'left':'right';else n.dir=dy<0?'up':'down';const sp=n.speed*dt;n.x+=dx/d*sp;n.y+=dy/d*sp}}
@@ -267,11 +278,29 @@ const shadowAlpha=()=>(state.weather==='sunny'?.24:state.weather==='cloudy'?.12:
 function traceTilePoly(points,ox=0,oy=0){ctx.beginPath();points.forEach(([x,y],i)=>{const sx=x*TILE-camera.x+ox,sy=y*TILE-camera.y+oy;i?ctx.lineTo(sx,sy):ctx.moveTo(sx,sy)});ctx.closePath()}
 function drawLandMass(poly,top,cliff='#4e6749',depth=20){traceTilePoly(poly,0,depth);ctx.fillStyle=cliff;ctx.fill();traceTilePoly(poly);ctx.fillStyle=top;ctx.fill();ctx.strokeStyle='rgba(49,72,48,.6)';ctx.lineWidth=3;ctx.stroke()}
 function drawNarrowStairs(){const x=29.55*TILE-camera.x,y=22.2*TILE-camera.y,w=3.9*TILE,h=12.5*TILE;ctx.fillStyle='#52694b';ctx.fillRect(x-18,y,w+36,h);ctx.fillStyle='#bda06d';ctx.fillRect(x,y,w,h);for(let i=0;i<19;i++){const sy=y+i*(h/19);ctx.fillStyle=i%2?'#aa8d5e':'#c7ab76';ctx.fillRect(x,sy,w,5);ctx.fillStyle='rgba(70,53,35,.22)';ctx.fillRect(x,sy+5,w,2)}ctx.fillStyle='#5c774f';for(let i=0;i<9;i++){ctx.fillRect(x-14,y+9+i*42,10,18);ctx.fillRect(x+w+4,y+28+i*42,10,18)}}
+function drawRoadTiles(){
+  ctx.save();ctx.translate(-camera.x,-camera.y);
+  for(const key of roadTiles){const[tx,ty]=key.split(',').map(Number),x=tx*TILE,y=ty*TILE;if(!visible(rect(x,y,TILE,TILE),40))continue;
+    ctx.fillStyle='#9b8a70';ctx.fillRect(x-2,y-2,TILE+4,TILE+4);
+    ctx.fillStyle=((tx+ty)%4===0)?'#555c5c':'#505758';ctx.fillRect(x,y,TILE,TILE);
+    ctx.fillStyle='rgba(221,226,216,.10)';ctx.fillRect(x+3,y+3,TILE-6,2);
+    if((ty===8&&tx%3===1)||(ty===7&&tx%3===0)||(ty===6&&tx%3===2)||(ty===5&&tx%3===1)){ctx.fillStyle='#d5c77f';ctx.fillRect(x+5,y+TILE/2-1,TILE-10,3)}
+  }
+  ctx.restore();
+}
+function drawConifer(t){
+  const x=t.tx*TILE-camera.x,y=t.ty*TILE-camera.y,s=t.s||1;if(x<-90||x>VIEW.w+90||y<-130||y>VIEW.h+100)return;
+  ctx.save();ctx.fillStyle='rgba(20,29,25,.30)';ctx.beginPath();ctx.ellipse(x+8*s,y+27*s,20*s,7*s,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#5a3f2e';ctx.fillRect(x-3*s,y+2*s,6*s,30*s);
+  for(const [dy,w,c] of [[-42,18,'#35684f'],[-29,24,'#2e5d47'],[-14,30,'#274f3c']]){ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(x,y+dy*s);ctx.lineTo(x-w*s,y+(dy+34)*s);ctx.lineTo(x+w*s,y+(dy+34)*s);ctx.closePath();ctx.fill()}
+  ctx.fillStyle='rgba(136,166,132,.23)';ctx.fillRect(x-5*s,y-26*s,3*s,25*s);ctx.restore();
+}
 function drawVillageGround(){
   ctx.fillStyle='#3f5f49';ctx.fillRect(0,0,VIEW.w,VIEW.h);
   ctx.save();ctx.translate(-camera.x,-camera.y);ctx.fillStyle='#304c3d';for(let x=-180;x<CONFIG.villageCols*TILE+260;x+=320){ctx.beginPath();ctx.moveTo(x,270);ctx.lineTo(x+95,90+(Math.abs(x/320)%3)*34);ctx.lineTo(x+190,150);ctx.lineTo(x+340,270);ctx.closePath();ctx.fill()}ctx.restore();
   drawLandMass(UPPER_LAND,'#77a56b','#4c6548',26);
   drawLandMass(LOWER_LAND,'#86b474','#577451',16);
+  drawRoadTiles();
   drawNarrowStairs();
   ctx.save();ctx.translate(-camera.x,-camera.y);
   for(const [key] of pathTiles){const[tx,ty]=key.split(',').map(Number),x=tx*TILE,y=ty*TILE;if(!visible(rect(x,y,TILE,TILE),32))continue;const n=(tx*17+ty*29)%5;ctx.fillStyle=['#c4a36d','#ceb07a','#b99a65','#d0b17a','#c6a872'][n];ctx.fillRect(x,y,TILE,TILE);ctx.strokeStyle='rgba(100,74,43,.2)';ctx.strokeRect(x+.5,y+.5,TILE-1,TILE-1);ctx.fillStyle='rgba(248,224,173,.26)';ctx.fillRect(x+4+(n*6)%18,y+6+(n*9)%17,6,3)}
@@ -329,6 +358,7 @@ function drawVillage(){
   for(const b of buildings){const r=tileRect(b);list.push({y:r.y+r.h,fn:()=>drawBuilding(b)})}
   for(const r of rocks)list.push({y:r.y+r.h,fn:()=>drawRock(r)});
   for(const t of trees)list.push({y:t.y+40,fn:()=>drawTree(t)});
+  for(const t of conifers)list.push({y:t.ty*TILE+38*t.s,fn:()=>drawConifer(t)});
   for(const n of npcs)list.push({y:n.y,fn:()=>drawPerson(n.x,n.y,n.style,n.dir,n.moving,n.id.startsWith('resident')?null:n.name,false)});
   list.push({y:state.player.y,fn:()=>drawPerson(state.player.x,state.player.y,{hair:'#4b342c',body:'#416a91',accent:'#f1ead4',skin:'#efc29d'},state.player.dir,input.keys.size>0&&!ui.modal&&!buildState.active,null,true)});
   list.sort((a,b)=>a.y-b.y);for(const e of list)e.fn()
