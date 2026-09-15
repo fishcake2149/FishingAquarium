@@ -1,0 +1,153 @@
+name: Apply v3.4 world layout overhaul
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-v34-world-layout.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Rebuild village topology and building art
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('prototype/v3/game-v31-source.js')
+          s=p.read_text(encoding='utf-8')
+
+          world=r'''const pond={cx:70*TILE,cy:54*TILE,rx:23*TILE,ry:13*TILE};
+const UPPER_LAND=[[2,7],[8,5],[18,5],[24,4],[35,6],[40,10],[40,18],[36,22],[33,22],[33,26],[29,26],[29,23],[22,23],[16,25],[8,23],[3,19]];
+const LOWER_LAND=[[28,32],[38,30],[50,32],[62,30],[76,31],[90,29],[102,33],[108,40],[106,49],[109,58],[104,66],[94,70],[82,69],[70,71],[57,68],[44,71],[30,69],[18,66],[11,59],[9,49],[12,40],[19,35]];
+function pointInPoly(tx,ty,poly){let inside=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1],cross=((yi>ty)!=(yj>ty))&&(tx<(xj-xi)*(ty-yi)/(yj-yi||1e-9)+xi);if(cross)inside=!inside}return inside}
+function isVillageLandPoint(x,y){const tx=x/TILE,ty=y/TILE;return pointInPoly(tx,ty,UPPER_LAND)||pointInPoly(tx,ty,LOWER_LAND)||(tx>=29&&tx<=33&&ty>=20&&ty<=35)}
+function playerFitsVillageLand(x,y,r=14){const d=r*.7;return [[0,0],[r,0],[-r,0],[0,r],[0,-r],[d,d],[d,-d],[-d,d],[-d,-d]].every(([ox,oy])=>isVillageLandPoint(x+ox,y+oy))}
+const buildings=[
+{id:'aquarium',tx:17,ty:8,tw:12,th:8,label:'낡은 아쿠아리움',kind:'aquarium',roof:'#66766d',wall:'#d4bf92',sign:'AQUARIUM'},
+{id:'shop',tx:39,ty:32,tw:9,th:7,label:'마르코 상점',kind:'shop',roof:'#a85c55',wall:'#e0bd76',sign:'연못 상점'},
+{id:'workshop',tx:57,ty:31,tw:10,th:7,label:'브루노 작업장',kind:'workshop',roof:'#765a48',wall:'#c99a65',sign:'수리 작업장'},
+{id:'homeA',tx:82,ty:32,tw:8,th:7,label:'로한의 집',kind:'home',roof:'#855d52',wall:'#dfbc7e',sign:''},
+{id:'homeB',tx:98,ty:46,tw:8,th:7,label:'연못마을 주택',kind:'home',roof:'#8e625b',wall:'#d9b67b',sign:''},
+{id:'homeC',tx:15,ty:47,tw:8,th:7,label:'연못마을 주택',kind:'home',roof:'#796457',wall:'#dec18a',sign:''},
+{id:'homeD',tx:27,ty:59,tw:8,th:7,label:'연못마을 주택',kind:'home',roof:'#8a6556',wall:'#d7b67f',sign:''}
+];
+const busShelter=rect(4*TILE,11*TILE,5*TILE,2.4*TILE);
+const rocks=[rect(20*TILE,55*TILE,1.5*TILE,1.3*TILE),rect(96*TILE,60*TILE,1.7*TILE,1.5*TILE),rect(42*TILE,66*TILE,1.3*TILE,1.2*TILE),rect(89*TILE,67*TILE,1.5*TILE,1.2*TILE),rect(103*TILE,39*TILE,1.5*TILE,1.4*TILE)];
+const pathTiles=new Set();
+const addPathTile=(x,y)=>pathTiles.add(`${x},${y}`);
+function addH(x1,x2,y,w=3){for(let x=Math.min(x1,x2);x<=Math.max(x1,x2);x++)for(let o=-Math.floor(w/2);o<=Math.floor(w/2);o++)addPathTile(x,y+o)}
+function addV(y1,y2,x,w=3){for(let y=Math.min(y1,y2);y<=Math.max(y1,y2);y++)for(let o=-Math.floor(w/2);o<=Math.floor(w/2);o++)addPathTile(x+o,y)}
+// Upper overlook: bus stop and aquarium, then one narrow descent into town.
+addH(7,27,15,3);addV(15,21,27,3);addH(27,31,21,3);addV(21,36,31,2);
+// Lower village opens up after the stairway.
+addV(35,40,31,3);addH(18,101,40,3);addV(40,54,30,3);addH(18,45,54,3);addV(54,64,30,3);addH(30,45,64,3);addV(40,58,99,3);addH(92,101,58,3);
+'''
+          s,n=re.subn(r"const pond=\{.*?\n\nconst decoRand=",world+"\nconst decoRand=",s,flags=re.S)
+          assert n==1, f'world block {n}'
+
+          collision=r'''function playerTouchesPond(x,y,r=18){const d=r*.72;return [[0,0],[r,0],[-r,0],[0,r],[0,-r],[d,d],[d,-d],[-d,d],[-d,-d]].some(([ox,oy])=>pondNorm(x+ox,y+oy)<1.018)}
+function isSolidVillage(x,y,r=10){const z=sceneSize();if(x-r<0||y-r<0||x+r>z.w||y+r>z.h)return true;if(!playerFitsVillageLand(x,y,Math.max(12,r)))return true;if(playerTouchesPond(x,y,Math.max(17,r)))return true;if(buildings.some(b=>circleRectHit(x,y,r,tileRect(b))))return true;if(rocks.some(o=>circleRectHit(x,y,r,o)))return true;if(circleRectHit(x,y,r,busShelter))return true;return false}'''
+          s,n=re.subn(r"function playerTouchesPond\(.*?\nfunction isSolidVillage\(.*?\n",collision+"\n",s,flags=re.S)
+          assert n==1, f'collision block {n}'
+          s=s.replace("const x=(tx+.5)*TILE,y=(ty+.5)*TILE;if(pondNorm(x,y)<1.03)return true;", "const x=(tx+.5)*TILE,y=(ty+.5)*TILE;if(!isVillageLandPoint(x,y))return true;if(pondNorm(x,y)<1.03)return true;")
+
+          s,n=re.subn(r"const npcDefs=\[.*?\],npcs=npcDefs",r'''const npcDefs=[
+{id:'rohan',name:'로한',x:45*TILE,y:52*TILE,style:{hair:'#3a332e',body:'#315863',accent:'#31444b',skin:'#d5a37b'},speed:46},
+{id:'yotri',name:'요트리',x:96*TILE,y:55*TILE,style:{hair:'#453553',body:'#7b638e',accent:'#d8a8c4',skin:'#e1b08e'},speed:50},
+{id:'luka',name:'루카',x:10*TILE,y:15*TILE,style:{hair:'#6b4a2f',body:'#4d78a3',accent:'#efd185',skin:'#e3ad80'},speed:53},
+{id:'bruno',name:'브루노',x:62*TILE,y:40*TILE,style:{hair:'#57443a',body:'#846541',accent:'#9ca29d',skin:'#d1a078'},speed:44},
+{id:'resident1',name:'주민',x:37*TILE,y:41*TILE,style:{hair:'#503a35',body:'#6c8872',accent:'#d6bd75',skin:'#daa87c'},speed:42},
+{id:'resident2',name:'주민',x:96*TILE,y:41*TILE,style:{hair:'#3c3b45',body:'#9b715e',accent:'#d7a8a2',skin:'#dba67d'},speed:46},
+{id:'resident3',name:'주민',x:31*TILE,y:57*TILE,style:{hair:'#5d4939',body:'#7891a5',accent:'#c7b56d',skin:'#d9a57d'},speed:44}
+],npcs=npcDefs''',s,flags=re.S)
+          assert n==1, f'npc defs {n}'
+          s,n=re.subn(r"function npcTarget\(n\)\{.*?\nfunction updateNpcs",r'''function npcTarget(n){const h=gameHour();switch(n.id){case'rohan':return h>=6&&h<19?{x:45*TILE,y:52*TILE}:{x:86*TILE,y:40*TILE};case'yotri':return isNight()?{x:96*TILE,y:57*TILE}:{x:91*TILE,y:41*TILE};case'luka':return h>=7&&h<18?{x:10*TILE,y:15*TILE}:{x:25*TILE,y:20*TILE};case'bruno':return h>=6&&h<20?{x:62*TILE,y:40*TILE}:{x:69*TILE,y:41*TILE};case'resident1':return h<12?{x:37*TILE,y:41*TILE}:{x:28*TILE,y:52*TILE};case'resident2':return h<16?{x:96*TILE,y:41*TILE}:{x:100*TILE,y:58*TILE};case'resident3':return h<15?{x:31*TILE,y:57*TILE}:{x:38*TILE,y:64*TILE};default:return{x:n.x,y:n.y}}}
+function updateNpcs''',s,flags=re.S)
+          assert n==1, f'npc target {n}'
+
+          s,n=re.subn(r"function locationName\(\)\{.*?\nfunction refreshHud",r'''function locationName(){if(state.scene==='shop')return'연못 마을 · 마르코 상점';if(state.scene==='aquarium'){if(rectContains(managerRoom,state.player.x,state.player.y))return'연못 마을 · 아쿠아리움 관리자실';return'연못 마을 · 낡은 아쿠아리움'}const p=state.player;if(p.y<27*TILE)return p.x<14*TILE?'연못 마을 · 버스정류장':'연못 마을 · 아쿠아리움 언덕';if(p.y<38*TILE&&p.x>27*TILE&&p.x<36*TILE)return'연못 마을 · 내리막 계단길';if(pondNorm(p.x,p.y)<1.35)return'연못 마을 · 중앙 연못';if(p.y<46*TILE)return'연못 마을 · 윗마을';if(p.x<40*TILE)return'연못 마을 · 서쪽 주택가';if(p.x>92*TILE)return'연못 마을 · 동쪽 주택가';return'연못 마을'}
+function refreshHud''',s,flags=re.S)
+          assert n==1, f'location {n}'
+
+          terrain=r'''function traceTilePoly(points,ox=0,oy=0){ctx.beginPath();points.forEach(([x,y],i)=>{const sx=x*TILE-camera.x+ox,sy=y*TILE-camera.y+oy;i?ctx.lineTo(sx,sy):ctx.moveTo(sx,sy)});ctx.closePath()}
+function drawLandMass(poly,top,cliff='#4e6749',depth=20){traceTilePoly(poly,0,depth);ctx.fillStyle=cliff;ctx.fill();traceTilePoly(poly);ctx.fillStyle=top;ctx.fill();ctx.strokeStyle='rgba(49,72,48,.6)';ctx.lineWidth=3;ctx.stroke()}
+function drawNarrowStairs(){const x=29.55*TILE-camera.x,y=22.2*TILE-camera.y,w=3.9*TILE,h=12.5*TILE;ctx.fillStyle='#52694b';ctx.fillRect(x-18,y,w+36,h);ctx.fillStyle='#bda06d';ctx.fillRect(x,y,w,h);for(let i=0;i<19;i++){const sy=y+i*(h/19);ctx.fillStyle=i%2?'#aa8d5e':'#c7ab76';ctx.fillRect(x,sy,w,5);ctx.fillStyle='rgba(70,53,35,.22)';ctx.fillRect(x,sy+5,w,2)}ctx.fillStyle='#5c774f';for(let i=0;i<9;i++){ctx.fillRect(x-14,y+9+i*42,10,18);ctx.fillRect(x+w+4,y+28+i*42,10,18)}}
+function drawVillageGround(){
+  // Outside the playable land is hillside/forest, so the map no longer reads as a rectangle.
+  ctx.fillStyle='#3f5f49';ctx.fillRect(0,0,VIEW.w,VIEW.h);
+  ctx.save();ctx.translate(-camera.x,-camera.y);ctx.fillStyle='#304c3d';for(let x=-180;x<CONFIG.villageCols*TILE+260;x+=320){ctx.beginPath();ctx.moveTo(x,270);ctx.lineTo(x+95,90+(Math.abs(x/320)%3)*34);ctx.lineTo(x+190,150);ctx.lineTo(x+340,270);ctx.closePath();ctx.fill()}ctx.restore();
+
+  // High overlook plateau: only the bus stop and the aquarium live up here.
+  drawLandMass(UPPER_LAND,'#77a56b','#4c6548',26);
+  // Broad lower village basin reached through one tight stairway.
+  drawLandMass(LOWER_LAND,'#86b474','#577451',16);
+  drawNarrowStairs();
+
+  ctx.save();ctx.translate(-camera.x,-camera.y);
+  for(const [key] of pathTiles){const[tx,ty]=key.split(',').map(Number),x=tx*TILE,y=ty*TILE;if(!visible(rect(x,y,TILE,TILE),32))continue;const n=(tx*17+ty*29)%5;ctx.fillStyle=['#c4a36d','#ceb07a','#b99a65','#d0b17a','#c6a872'][n];ctx.fillRect(x,y,TILE,TILE);ctx.strokeStyle='rgba(100,74,43,.2)';ctx.strokeRect(x+.5,y+.5,TILE-1,TILE-1);ctx.fillStyle='rgba(248,224,173,.26)';ctx.fillRect(x+4+(n*6)%18,y+6+(n*9)%17,6,3)}
+  for(const g of grassTufts){if(!isVillageLandPoint(g.x,g.y)||pondNorm(g.x,g.y)<1.12)continue;if(pathTiles.has(`${Math.floor(g.x/TILE)},${Math.floor(g.y/TILE)}`))continue;ctx.fillStyle=g.t>.65?'#628f58':'#70a063';ctx.fillRect(Math.round(g.x),Math.round(g.y),2,5);ctx.fillRect(Math.round(g.x+4),Math.round(g.y+2),2,4)}
+  for(const f of flowerPatches){if(!isVillageLandPoint(f.x,f.y)||pondNorm(f.x,f.y)<1.1)continue;if(pathTiles.has(`${Math.floor(f.x/TILE)},${Math.floor(f.y/TILE)}`))continue;ctx.fillStyle='#4e7d4e';ctx.fillRect(Math.round(f.x),Math.round(f.y),2,7);ctx.fillStyle=f.c;ctx.fillRect(Math.round(f.x-2),Math.round(f.y-2),6,4)}ctx.restore();
+  drawPond();drawBusStop();
+}
+function pondScreenPath'''
+          s,n=re.subn(r"function traceWorldPoly.*?\nfunction pondScreenPath",terrain,s,flags=re.S)
+          assert n==1, f'terrain {n}'
+
+          building=r'''function drawBuilding(b){
+  const r=tileRect(b);if(!visible(rect(r.x-28,r.y-48,r.w+56,r.h+75)))return;const s=w2s(r.x,r.y),L=lighting();
+  // Flat 2D sprite-style architecture: layered roof/wall depth, no fake side-face perspective.
+  ctx.fillStyle=`rgba(38,43,31,${shadowAlpha()})`;ctx.beginPath();ctx.ellipse(s.x+r.w*.52+L.shadowLen,s.y+r.h+8,r.w*.48,18,0,0,Math.PI*2);ctx.fill();
+  // stone footing
+  ctx.fillStyle='#73644f';ctx.fillRect(s.x+8,s.y+r.h-25,r.w-16,22);for(let x=15;x<r.w-25;x+=34){ctx.fillStyle=(x/34)%2?'#665947':'#80705a';ctx.fillRect(s.x+x,s.y+r.h-20,24,7)}
+  // timber front wall
+  ctx.fillStyle=b.wall;ctx.fillRect(s.x+7,s.y+68,r.w-14,r.h-88);ctx.fillStyle='#67472f';ctx.fillRect(s.x+8,s.y+66,8,r.h-67);ctx.fillRect(s.x+r.w-16,s.y+66,8,r.h-67);for(let x=55;x<r.w-55;x+=76)ctx.fillRect(s.x+x,s.y+70,6,r.h-96);
+  // one coherent front roof plane with eaves/shingle bands
+  ctx.fillStyle='#46352d';ctx.beginPath();ctx.moveTo(s.x-17,s.y+72);ctx.lineTo(s.x+r.w*.5,s.y-13);ctx.lineTo(s.x+r.w+17,s.y+72);ctx.lineTo(s.x+r.w+12,s.y+82);ctx.lineTo(s.x-12,s.y+82);ctx.closePath();ctx.fill();
+  ctx.fillStyle=b.roof;ctx.beginPath();ctx.moveTo(s.x-13,s.y+68);ctx.lineTo(s.x+r.w*.5,s.y-9);ctx.lineTo(s.x+r.w+13,s.y+68);ctx.lineTo(s.x+r.w+8,s.y+76);ctx.lineTo(s.x-8,s.y+76);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='rgba(70,48,39,.24)';ctx.lineWidth=2;for(let yy=19;yy<68;yy+=12){const half=(r.w*.5+13)*(yy/77);ctx.beginPath();ctx.moveTo(s.x+r.w*.5-half,s.y-9+yy);ctx.lineTo(s.x+r.w*.5+half,s.y-9+yy);ctx.stroke()}
+  ctx.fillStyle='#503b2e';ctx.fillRect(s.x-10,s.y+73,r.w+20,9);
+  // recessed windows
+  for(let x=42;x<r.w-58;x+=84){ctx.fillStyle='#584133';ctx.fillRect(s.x+x-5,s.y+98,41,37);ctx.fillStyle=isNight()?'#f0d17f':'#abd6d4';ctx.fillRect(s.x+x,s.y+103,31,25);ctx.fillStyle='rgba(255,255,255,.22)';ctx.fillRect(s.x+x+4,s.y+106,4,17);ctx.fillStyle='#8a5543';ctx.fillRect(s.x+x-3,s.y+132,37,7);ctx.fillStyle='#629451';ctx.fillRect(s.x+x+6,s.y+125,5,8);ctx.fillRect(s.x+x+21,s.y+124,5,9)}
+  // front door and porch
+  const doorX=s.x+r.w*.5-19;ctx.fillStyle='#4e3525';ctx.fillRect(doorX,s.y+r.h-84,38,64);ctx.fillStyle='#795239';ctx.fillRect(doorX+4,s.y+r.h-79,30,59);ctx.fillStyle='#e1ba61';ctx.fillRect(doorX+28,s.y+r.h-51,4,4);ctx.fillStyle='#7a5a3c';ctx.fillRect(doorX-14,s.y+r.h-21,66,9);ctx.fillStyle='#a48258';ctx.fillRect(doorX-21,s.y+r.h-12,80,9);
+  // small vertical details add richness without forced 3D planes
+  if(b.kind!=='shop'){ctx.fillStyle='#68544a';ctx.fillRect(s.x+r.w*.72,s.y+8,21,43);ctx.fillStyle='#453731';ctx.fillRect(s.x+r.w*.72-3,s.y+4,27,7)}
+  if(b.sign){ctx.fillStyle='#523b2a';ctx.fillRect(s.x+r.w*.5-65,s.y+69,130,27);pixelText(b.sign,s.x+r.w*.5,s.y+88,10,'#ffe6a5','center')}
+  if(b.kind==='shop'){ctx.fillStyle='#7d5132';ctx.fillRect(s.x+16,s.y+r.h-42,60,34);ctx.fillStyle='#caa661';ctx.fillRect(s.x+13,s.y+r.h-48,66,7);for(let i=0;i<3;i++){ctx.fillStyle=['#d8bb61','#86aa63','#d98b78'][i];ctx.fillRect(s.x+23+i*16,s.y+r.h-34,11,12)}}
+  if(b.kind==='workshop'){ctx.fillStyle='#69482f';ctx.fillRect(s.x+r.w-78,s.y+r.h-48,60,37);ctx.fillStyle='#a5aca8';ctx.fillRect(s.x+r.w-57,s.y+r.h-72,8,29);ctx.fillRect(s.x+r.w-65,s.y+r.h-70,25,7)}
+  if(b.kind==='aquarium'){ctx.fillStyle='#718278';ctx.fillRect(s.x+15,s.y+r.h-51,27,49);ctx.fillStyle='#9d8d75';ctx.fillRect(s.x+r.w-40,s.y+r.h-62,22,61);ctx.fillStyle='#b8c8bd';ctx.fillRect(s.x+r.w*.5-66,s.y+38,132,22);pixelText('낚시 아쿠아리움',s.x+r.w*.5,s.y+54,9,'#405149','center')}
+}
+function drawTree'''
+          s,n=re.subn(r"function drawBuilding\(b\)\{.*?\nfunction drawTree",building,s,flags=re.S)
+          assert n==1, f'building {n}'
+
+          p.write_text(s,encoding='utf-8')
+
+          ip=Path('prototype/v3/index.html')
+          h=ip.read_text(encoding='utf-8')
+          h=re.sub(r'game-v31-source\.js\?v=[^"\']+', 'game-v31-source.js?v=20260915-4', h)
+          ip.write_text(h,encoding='utf-8')
+          PY
+
+      - name: Syntax check
+        run: node --check prototype/v3/game-v31-source.js
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add prototype/v3/game-v31-source.js prototype/v3/index.html
+          git commit -m "Rebuild village as overlook stairway and lower town" || exit 0
+          git push
