@@ -1,11 +1,10 @@
-name: Apply v3.5 bus road and stair vegetation
+name: Apply v3.6 straight bus road and dense stair forest
 
 on:
   push:
     branches: [main]
     paths:
       - '.github/workflows/apply-v35-bus-road.yml'
-      - 'tools/apply_v35_bus_road_trees.py'
   workflow_dispatch:
 
 permissions:
@@ -19,8 +18,48 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Apply road, tile paths, and conifers
-        run: python tools/apply_v35_bus_road_trees.py
+      - name: Straighten road and densify conifers
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('prototype/v3/game-v31-source.js')
+          s=p.read_text(encoding='utf-8')
+
+          old_roads="addRoadH(0,12,8,2);addRoadH(12,16,7,2);addRoadH(16,22,6,2);addRoadH(22,34,5,2);addRoadH(34,40,6,2);addRoadH(4,10,10,1);"
+          new_roads="addRoadH(1,40,7,2);addRoadH(4,10,9,2);"
+          assert old_roads in s, 'current road layout not found'
+          s=s.replace(old_roads,new_roads,1)
+
+          dense=r'''const conifers=(()=>{
+  const out=[];
+  const fill=(x1,x2,y1,y2,dx,dy,phase)=>{
+    let row=0;
+    for(let ty=y1;ty<=y2;ty+=dy,row++){
+      const shift=(row%2)*dx*.42;
+      for(let tx=x1+shift;tx<=x2;tx+=dx){
+        const wobbleX=Math.sin((tx*7.3+ty*3.1+phase))*0.10;
+        const wobbleY=Math.cos((tx*4.7-ty*5.2+phase))*0.10;
+        const size=.86+((Math.sin(tx*2.2+ty*1.7+phase)+1)*.5)*.28;
+        out.push({tx:tx+wobbleX,ty:ty+wobbleY,s:size});
+      }
+    }
+  };
+  // Pack the dark slopes beside the stairway with a real conifer grove.
+  fill(23.5,28.1,22.5,35.6,1.18,1.13,0.4);
+  fill(34.7,39.4,22.5,35.6,1.18,1.13,2.1);
+  // Extra outer rows remove the remaining empty dark gaps without blocking the stairs.
+  fill(21.9,23.0,24.0,34.8,1.15,1.18,4.2);
+  fill(40.0,41.1,24.0,34.8,1.15,1.18,5.7);
+  return out;
+})();'''
+          s,n=re.subn(r"const conifers=\[.*?\];",dense,s,count=1,flags=re.S)
+          assert n==1, f'conifer block patch {n}'
+
+          p.write_text(s,encoding='utf-8')
+          PY
 
       - name: Syntax check
         run: node --check prototype/v3/game-v31-source.js
@@ -33,6 +72,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes"
           else
-            git commit -m "Add bus road, grid paths, and stair conifers"
+            git commit -m "Straighten bus road and fill stair slopes with conifers"
             git push
           fi
