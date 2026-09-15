@@ -1,4 +1,4 @@
-name: Apply v3.8 continuous road and full dark forest
+name: Apply v3.9 visible village path network
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extend road, reconnect paths, and fill all dark terrain
+      - name: Build visible paths between village buildings
         shell: bash
         run: |
           python - <<'PY'
@@ -28,65 +28,27 @@ jobs:
           p = Path('prototype/v3/game-v31-source.js')
           s = p.read_text(encoding='utf-8')
 
-          old_roads = "addRoadH(0,42,7,2);addRoadH(4,10,9,2);"
-          new_roads = "addRoadH(0,111,7,2);addRoadH(4,10,9,3);"
-          assert old_roads in s, 'road geometry not found'
-          s = s.replace(old_roads, new_roads, 1)
+          old_lower = "addH(18,103,40,3);addV(38,40,43,3);addV(37,40,62,3);addV(38,40,86,3);addV(40,54,30,3);addH(18,45,54,3);addV(54,66,30,3);addH(30,45,66,3);addV(40,53,102,3);addH(99,102,53,3);addV(53,58,99,3);addH(92,102,58,3);"
+          new_lower = "addH(18,103,40,3);addV(39,40,43,3);addV(38,40,62,3);addV(39,40,86,3);addV(40,54,19,3);addH(19,31,54,3);addV(54,66,31,3);addV(40,53,102,3);addH(99,102,53,3);addV(53,58,99,3);addH(92,102,58,3);"
+          assert old_lower in s, 'current lower village path block not found'
+          s = s.replace(old_lower, new_lower, 1)
 
-          upper_old = "addV(14,18,7,3);addH(7,23,18,3);addV(16,18,23,3);addH(23,31,20,3);addV(20,36,31,3);"
-          upper_new = "addV(14,18,7,3);addH(7,23,18,3);addV(16,20,23,3);addH(23,31,20,3);addV(20,40,31,3);"
-          assert upper_old in s, 'upper path block not found'
-          s = s.replace(upper_old, upper_new, 1)
+          old_draw = "for(const [key] of pathTiles){const[tx,ty]=key.split(',').map(Number),x=tx*TILE,y=ty*TILE;if(!visible(rect(x,y,TILE,TILE),32))continue;const n=(tx*17+ty*29)%5;ctx.fillStyle=['#d9bd82','#e1c98f','#cfb276','#e4cb91','#d6bb7f'][n];ctx.fillRect(x,y,TILE,TILE);ctx.strokeStyle='rgba(83,61,39,.38)';ctx.strokeRect(x+.5,y+.5,TILE-1,TILE-1);ctx.fillStyle='rgba(248,224,173,.26)';ctx.fillRect(x+4+(n*6)%18,y+6+(n*9)%17,6,3)}"
+          new_draw = "for(const [key] of pathTiles){const[tx,ty]=key.split(',').map(Number),x=tx*TILE,y=ty*TILE;if(!visible(rect(x,y,TILE,TILE),32))continue;const n=Math.abs((tx*17+ty*29)%5);ctx.fillStyle='#8d6d43';ctx.fillRect(x-2,y-2,TILE+4,TILE+4);ctx.fillStyle=['#c79e62','#d0aa6c','#bd9259','#d5ad6f','#c49a5f'][n];ctx.fillRect(x,y,TILE,TILE);ctx.strokeStyle='rgba(82,55,31,.72)';ctx.lineWidth=1.5;ctx.strokeRect(x+.75,y+.75,TILE-1.5,TILE-1.5);ctx.fillStyle='rgba(246,218,158,.45)';ctx.fillRect(x+4+(n*5)%17,y+5+(n*7)%18,8,3);ctx.fillStyle='rgba(104,72,40,.24)';ctx.fillRect(x+18-(n*2)%9,y+20-(n*3)%8,5,3)}"
+          assert old_draw in s, 'current path renderer not found'
+          s = s.replace(old_draw, new_draw, 1)
 
-          lower_old = "addV(35,40,31,3);addH(18,101,40,3);addV(40,54,30,3);addH(18,45,54,3);addV(54,64,30,3);addH(30,45,64,3);addV(40,58,99,3);addH(92,101,58,3);"
-          lower_new = "addH(18,103,40,3);addV(38,40,43,3);addV(37,40,62,3);addV(38,40,86,3);addV(40,54,30,3);addH(18,45,54,3);addV(54,66,30,3);addH(30,45,66,3);addV(40,53,102,3);addH(99,102,53,3);addV(53,58,99,3);addH(92,102,58,3);"
-          assert lower_old in s, 'lower path block not found'
-          s = s.replace(lower_old, lower_new, 1)
-
-          dense_forest = "\n".join([
-              "const darkForest=(()=>{",
-              "  const out=[];",
-              "  let row=0;",
-              "  for(let ty=-1.0;ty<=CONFIG.villageRows+2;ty+=.92,row++){",
-              "    const shift=(row%2)*.46;",
-              "    for(let tx=-1.2+shift;tx<=CONFIG.villageCols+1.5;tx+=.92){",
-              "      const x=tx*TILE,y=ty*TILE;",
-              "      if(isVillageLandPoint(x,y))continue;",
-              "      const wave=(Math.sin(tx*1.87+ty*2.31)+1)*.5;",
-              "      const size=1.38+wave*.30;",
-              "      out.push({",
-              "        tx:tx+Math.sin(tx*5.1+ty*1.3)*.08,",
-              "        ty:ty+Math.cos(ty*4.6-tx*1.1)*.08,",
-              "        s:size",
-              "      });",
-              "    }",
-              "  }",
-              "  return out;",
-              "})();"
-          ])
-          s, n = re.subn(r"const darkForest=\(\(\)=>\{.*?\n\}\)\(\);", dense_forest, s, count=1, flags=re.S)
-          assert n == 1, f'dark forest patch {n}'
-
-          road_draw = "\n".join([
-              "function drawRoadTiles(){",
-              "  ctx.save();",
-              "  const x0=-camera.x,y0=7*TILE-camera.y,w=CONFIG.villageCols*TILE,h=2*TILE;",
-              "  ctx.fillStyle='#a89473';ctx.fillRect(x0-4,y0-5,w+8,h+10);",
-              "  ctx.fillStyle='#505758';ctx.fillRect(x0,y0,w,h);",
-              "  ctx.fillStyle='rgba(220,225,218,.12)';ctx.fillRect(x0,y0+4,w,3);",
-              "  ctx.fillStyle='#d9ca83';",
-              "  for(let x=10;x<w-10;x+=46)ctx.fillRect(x0+x,y0+h/2-2,28,4);",
-              "  const px=4*TILE-camera.x,py=9*TILE-camera.y,pw=6*TILE,ph=3*TILE;",
-              "  ctx.fillStyle='#a89473';ctx.fillRect(px-4,py-3,pw+8,ph+6);",
-              "  ctx.fillStyle='#505758';ctx.fillRect(px,py,pw,ph);",
-              "  ctx.restore();",
-              "}",
-              ""
-          ])
-          s, n = re.subn(r"function drawRoadTiles\(\)\{.*?\n\}\nfunction drawConifer", road_draw + "function drawConifer", s, count=1, flags=re.S)
-          assert n == 1, f'road draw patch {n}'
+          marker = "for(const f of flowerPatches){if(!isVillageLandPoint(f.x,f.y)||pondNorm(f.x,f.y)<1.1)continue;if(pathTiles.has(`${Math.floor(f.x/TILE)},${Math.floor(f.y/TILE)}`))continue;ctx.fillStyle='#4e7d4e';ctx.fillRect(Math.round(f.x),Math.round(f.y),2,7);ctx.fillStyle=f.c;ctx.fillRect(Math.round(f.x-2),Math.round(f.y-2),6,4)}ctx.restore();"
+          replacement = "for(const f of flowerPatches){if(!isVillageLandPoint(f.x,f.y)||pondNorm(f.x,f.y)<1.1)continue;if(pathTiles.has(`${Math.floor(f.x/TILE)},${Math.floor(f.y/TILE)}`))continue;ctx.fillStyle='#4e7d4e';ctx.fillRect(Math.round(f.x),Math.round(f.y),2,7);ctx.fillStyle=f.c;ctx.fillRect(Math.round(f.x-2),Math.round(f.y-2),6,4)}\n  const doorAprons=[[43,39,2,2],[62,38,2,3],[86,39,2,2],[102,53,2,2],[19,54,2,2],[31,66,2,2]];\n  for(const [tx,ty,tw,th] of doorAprons){const x=tx*TILE,y=ty*TILE;ctx.fillStyle='#8d6d43';ctx.fillRect(x-3,y-3,tw*TILE+6,th*TILE+6);ctx.fillStyle='#caa065';ctx.fillRect(x,y,tw*TILE,th*TILE);ctx.strokeStyle='rgba(82,55,31,.7)';ctx.lineWidth=2;ctx.strokeRect(x+1,y+1,tw*TILE-2,th*TILE-2)}ctx.restore();"
+          assert marker in s, 'path decoration marker not found'
+          s = s.replace(marker, replacement, 1)
 
           p.write_text(s, encoding='utf-8')
+
+          index = Path('prototype/v3/index.html')
+          h = index.read_text(encoding='utf-8')
+          h = re.sub(r'game-v31-source\.js\?v=[^\"\']+', 'game-v31-source.js?v=20260915-10', h, count=1)
+          index.write_text(h, encoding='utf-8')
           PY
 
       - name: Syntax check
@@ -96,10 +58,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add prototype/v3/game-v31-source.js
+          git add prototype/v3/game-v31-source.js prototype/v3/index.html
           if git diff --cached --quiet; then
             echo "No changes"
           else
-            git commit -m "Extend straight road and fill all dark terrain with forest"
+            git commit -m "Add clear connected paths between village buildings"
             git push
           fi
