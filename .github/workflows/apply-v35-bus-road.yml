@@ -1,4 +1,4 @@
-name: Apply v3.7 straight road and full upper forest
+name: Apply v3.8 continuous road and full dark forest
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Rebuild road paths and dark forest
+      - name: Extend road, reconnect paths, and fill all dark terrain
         shell: bash
         run: |
           python - <<'PY'
@@ -28,78 +28,67 @@ jobs:
           p = Path('prototype/v3/game-v31-source.js')
           s = p.read_text(encoding='utf-8')
 
-          current_roads = "addRoadH(1,40,7,2);addRoadH(4,10,9,2);"
-          straight_roads = "addRoadH(0,42,7,2);addRoadH(4,10,9,2);"
-          assert current_roads in s, 'current road geometry not found'
-          s = s.replace(current_roads, straight_roads, 1)
+          # Main road: one unbroken horizontal road across the full village width.
+          old_roads = "addRoadH(0,42,7,2);addRoadH(4,10,9,2);"
+          new_roads = "addRoadH(0,111,7,2);addRoadH(4,10,9,3);"
+          assert old_roads in s, 'road geometry not found'
+          s = s.replace(old_roads, new_roads, 1)
 
-          old_upper = "addV(14,18,7,3);addH(7,23,18,3);addV(16,18,23,3);addH(23,31,20,3);addV(20,36,31,2);"
-          new_upper = "addV(14,18,7,3);addH(7,23,18,3);addV(16,18,23,3);addH(23,31,20,3);addV(20,36,31,3);"
-          if old_upper in s:
-              s = s.replace(old_upper, new_upper, 1)
+          # Reconnect the tile paths so the walking route reads clearly from the bus stop
+          # through the aquarium/stairs and then throughout the lower village.
+          upper_old = "addV(14,18,7,3);addH(7,23,18,3);addV(16,18,23,3);addH(23,31,20,3);addV(20,36,31,3);"
+          upper_new = "addV(14,18,7,3);addH(7,23,18,3);addV(16,20,23,3);addH(23,31,20,3);addV(20,40,31,3);"
+          assert upper_old in s, 'upper path block not found'
+          s = s.replace(upper_old, upper_new, 1)
 
-          forest_block = "\n".join([
-              "const conifers=(()=>{",
-              "  const out=[];",
-              "  const fill=(x1,x2,y1,y2,dx,dy,phase)=>{",
-              "    let row=0;",
-              "    for(let ty=y1;ty<=y2;ty+=dy,row++){",
-              "      const shift=(row%2)*dx*.45;",
-              "      for(let tx=x1+shift;tx<=x2;tx+=dx){",
-              "        const wobbleX=Math.sin((tx*6.4+ty*3.7+phase))*.08;",
-              "        const wobbleY=Math.cos((tx*3.9-ty*5.1+phase))*.08;",
-              "        const size=.98+((Math.sin(tx*2.1+ty*1.6+phase)+1)*.5)*.30;",
-              "        out.push({tx:tx+wobbleX,ty:ty+wobbleY,s:size});",
-              "      }",
-              "    }",
-              "  };",
-              "  fill(21.8,28.4,21.5,36.4,.88,.92,.4);",
-              "  fill(34.1,41.8,21.5,36.4,.88,.92,2.2);",
-              "  return out;",
-              "})();",
-              "const darkForest=(()=>{",
-              "  const out=[];",
-              "  let row=0;",
-              "  for(let ty=1.2;ty<=38;ty+=.92,row++){",
-              "    const shift=(row%2)*.46;",
-              "    for(let tx=.4+shift;tx<=44;tx+=.92){",
-              "      const x=tx*TILE,y=ty*TILE;",
-              "      if(isVillageLandPoint(x,y))continue;",
-              "      const size=1.03+((Math.sin(tx*1.9+ty*2.4)+1)*.5)*.28;",
-              "      out.push({tx:tx+Math.sin(tx*5.3+ty)*.07,ty:ty+Math.cos(ty*4.7-tx)*.07,s:size});",
-              "    }",
-              "  }",
-              "  return out;",
-              "})();"
-          ])
-          s, n = re.subn(r"const conifers=\(\(\)=>\{.*?\n\}\)\(\);", forest_block, s, count=1, flags=re.S)
-          assert n == 1, f'conifer block patch {n}'
+          lower_old = "addV(35,40,31,3);addH(18,101,40,3);addV(40,54,30,3);addH(18,45,54,3);addV(54,64,30,3);addH(30,45,64,3);addV(40,58,99,3);addH(92,101,58,3);"
+          lower_new = "addH(18,103,40,3);addV(38,40,43,3);addV(37,40,62,3);addV(38,40,86,3);addV(40,54,30,3);addH(18,45,54,3);addV(54,66,30,3);addH(30,45,66,3);addV(40,53,102,3);addH(99,102,53,3);addV(53,58,99,3);addH(92,102,58,3);"
+          assert lower_old in s, 'lower path block not found'
+          s = s.replace(lower_old, lower_new, 1)
 
-          road_draw = "\n".join([
-              "function drawRoadTiles(){",
-              "  ctx.save();",
-              "  const x0=-camera.x,y0=7*TILE-camera.y,w=42*TILE,h=2*TILE;",
-              "  ctx.fillStyle='#a89473';ctx.fillRect(x0-4,y0-5,w+8,h+10);",
-              "  ctx.fillStyle='#505758';ctx.fillRect(x0,y0,w,h);",
-              "  ctx.fillStyle='rgba(220,225,218,.12)';ctx.fillRect(x0,y0+4,w,3);",
-              "  ctx.fillStyle='#d9ca83';",
-              "  for(let x=10;x<w-10;x+=46)ctx.fillRect(x0+x,y0+h/2-2,28,4);",
-              "  ctx.fillStyle='#a89473';ctx.fillRect(4*TILE-camera.x,9*TILE-camera.y,6*TILE,2*TILE+5);",
-              "  ctx.fillStyle='#505758';ctx.fillRect(4*TILE-camera.x,9*TILE-camera.y,6*TILE,2*TILE);",
-              "  ctx.restore();",
-              "}",
-              ""
-          ])
+          # Replace the background forest with a full-map dense forest. The large overlapping
+          # conifer crowns remove visible patches of the raw dark background, while village land
+          # remains clear because land/road/path layers are rendered afterward.
+          dense_forest = """const darkForest=(()=>{
+  const out=[];
+  let row=0;
+  for(let ty=-1.0;ty<=CONFIG.villageRows+2;ty+=.92,row++){
+    const shift=(row%2)*.46;
+    for(let tx=-1.2+shift;tx<=CONFIG.villageCols+1.5;tx+=.92){
+      const x=tx*TILE,y=ty*TILE;
+      if(isVillageLandPoint(x,y))continue;
+      const wave=(Math.sin(tx*1.87+ty*2.31)+1)*.5;
+      const size=1.38+wave*.30;
+      out.push({
+        tx:tx+Math.sin(tx*5.1+ty*1.3)*.08,
+        ty:ty+Math.cos(ty*4.6-tx*1.1)*.08,
+        s:size
+      });
+    }
+  }
+  return out;
+})();"""
+          s, n = re.subn(r"const darkForest=\(\(\)=>\{.*?\n\}\)\(\);", dense_forest, s, count=1, flags=re.S)
+          assert n == 1, f'dark forest patch {n}'
+
+          # Draw the asphalt as one literal continuous strip instead of a finite 42-tile segment.
+          road_draw = """function drawRoadTiles(){
+  ctx.save();
+  const x0=-camera.x,y0=7*TILE-camera.y,w=CONFIG.villageCols*TILE,h=2*TILE;
+  ctx.fillStyle='#a89473';ctx.fillRect(x0-4,y0-5,w+8,h+10);
+  ctx.fillStyle='#505758';ctx.fillRect(x0,y0,w,h);
+  ctx.fillStyle='rgba(220,225,218,.12)';ctx.fillRect(x0,y0+4,w,3);
+  ctx.fillStyle='#d9ca83';
+  for(let x=10;x<w-10;x+=46)ctx.fillRect(x0+x,y0+h/2-2,28,4);
+  // Continuous bus pull-off from the road down to the shelter.
+  const px=4*TILE-camera.x,py=9*TILE-camera.y,pw=6*TILE,ph=3*TILE;
+  ctx.fillStyle='#a89473';ctx.fillRect(px-4,py-3,pw+8,ph+6);
+  ctx.fillStyle='#505758';ctx.fillRect(px,py,pw,ph);
+  ctx.restore();
+}
+"""
           s, n = re.subn(r"function drawRoadTiles\(\)\{.*?\n\}\nfunction drawConifer", road_draw + "function drawConifer", s, count=1, flags=re.S)
           assert n == 1, f'road draw patch {n}'
-
-          marker = "ctx.restore();\n  drawLandMass(UPPER_LAND,'#77a56b','#4c6548',26);"
-          replacement = "ctx.restore();\n  for(const t of darkForest)drawConifer(t);\n  drawLandMass(UPPER_LAND,'#77a56b','#4c6548',26);"
-          assert marker in s, 'dark forest render point not found'
-          s = s.replace(marker, replacement, 1)
-
-          s = s.replace("['#c4a36d','#ceb07a','#b99a65','#d0b17a','#c6a872']", "['#d9bd82','#e1c98f','#cfb276','#e4cb91','#d6bb7f']", 1)
-          s = s.replace("rgba(100,74,43,.2)", "rgba(83,61,39,.38)", 1)
 
           p.write_text(s, encoding='utf-8')
           PY
@@ -115,6 +104,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes"
           else
-            git commit -m "Make road straight and fill dark terrain with forest"
+            git commit -m "Extend straight road and fill all dark terrain with forest"
             git push
           fi
