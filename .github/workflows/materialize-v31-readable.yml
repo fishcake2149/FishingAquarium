@@ -1,0 +1,31 @@
+name: Materialize v31 readable source
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/materialize-v31-readable.yml'
+permissions:
+  contents: write
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode current v31 payload
+        shell: python
+        run: |
+          import base64, gzip
+          from pathlib import Path
+          parts=[]
+          for n in range(1,6):
+              parts.append(Path(f'prototype/v3/v31/part{n}.txt').read_text().strip())
+          src=gzip.decompress(base64.b64decode(''.join(parts))).decode('utf-8')
+          Path('prototype/v3/game-v31-source.js').write_text(src, encoding='utf-8')
+      - name: Commit readable source
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add prototype/v3/game-v31-source.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Materialize readable v3.1 game source'
+          git push
