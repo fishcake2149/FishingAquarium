@@ -93,16 +93,31 @@ function addRoadH(x1,x2,y,w=2){for(let x=Math.min(x1,x2);x<=Math.max(x1,x2);x++)
 function addH(x1,x2,y,w=3){for(let x=Math.min(x1,x2);x<=Math.max(x1,x2);x++)for(let o=-Math.floor(w/2);o<=Math.floor(w/2);o++)addPathTile(x,y+o)}
 function addV(y1,y2,x,w=3){for(let y=Math.min(y1,y2);y<=Math.max(y1,y2);y++)for(let o=-Math.floor(w/2);o<=Math.floor(w/2);o++)addPathTile(x+o,y)}
 // Rural road above the bus stop. It bends by grid cells so it still belongs to the tile map.
-addRoadH(0,12,8,2);addRoadH(12,16,7,2);addRoadH(16,22,6,2);addRoadH(22,34,5,2);addRoadH(34,40,6,2);addRoadH(4,10,10,1);
+addRoadH(1,40,7,2);addRoadH(4,10,9,2);
 // Upper walking route: bus stop -> aquarium entrance -> narrow stair descent.
 addV(14,18,7,3);addH(7,23,18,3);addV(16,18,23,3);addH(23,31,20,3);addV(20,36,31,2);
 // Lower village routes, all aligned to tile coordinates.
 addV(35,40,31,3);addH(18,101,40,3);addV(40,54,30,3);addH(18,45,54,3);addV(54,64,30,3);addH(30,45,64,3);addV(40,58,99,3);addH(92,101,58,3);
-const conifers=[
- {tx:26.0,ty:23.7,s:1.04},{tx:26.2,ty:25.6,s:.92},{tx:26.0,ty:27.7,s:1.12},{tx:26.2,ty:29.8,s:.96},{tx:26.1,ty:31.8,s:1.08},{tx:26.4,ty:33.6,s:.92},
- {tx:35.8,ty:23.8,s:1.08},{tx:35.6,ty:25.8,s:.94},{tx:35.8,ty:27.8,s:1.12},{tx:35.5,ty:29.9,s:.9},{tx:35.8,ty:31.9,s:1.05},{tx:35.4,ty:33.7,s:.94},
- {tx:24.7,ty:26.8,s:.84},{tx:37.0,ty:26.9,s:.86},{tx:24.9,ty:30.9,s:.88},{tx:36.9,ty:31.0,s:.88}
-];
+const conifers=(()=>{
+  const out=[];
+  const fill=(x1,x2,y1,y2,dx,dy,phase)=>{
+    let row=0;
+    for(let ty=y1;ty<=y2;ty+=dy,row++){
+      const shift=(row%2)*dx*.42;
+      for(let tx=x1+shift;tx<=x2;tx+=dx){
+        const wobbleX=Math.sin((tx*7.3+ty*3.1+phase))*0.10;
+        const wobbleY=Math.cos((tx*4.7-ty*5.2+phase))*0.10;
+        const size=.86+((Math.sin(tx*2.2+ty*1.7+phase)+1)*.5)*.28;
+        out.push({tx:tx+wobbleX,ty:ty+wobbleY,s:size});
+      }
+    }
+  };
+  fill(23.5,28.1,22.5,35.6,1.18,1.13,0.4);
+  fill(34.7,39.4,22.5,35.6,1.18,1.13,2.1);
+  fill(21.9,23.0,24.0,34.8,1.15,1.18,4.2);
+  fill(40.0,41.1,24.0,34.8,1.15,1.18,5.7);
+  return out;
+})();
 function nearConifer(x,y,r=10){return conifers.some(t=>dist(x,y,t.tx*TILE,t.ty*TILE)<r+14*t.s)}
 
 const decoRand=seeded(2219451);
