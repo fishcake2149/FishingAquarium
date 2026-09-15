@@ -93,11 +93,11 @@ function addRoadH(x1,x2,y,w=2){for(let x=Math.min(x1,x2);x<=Math.max(x1,x2);x++)
 function addH(x1,x2,y,w=3){for(let x=Math.min(x1,x2);x<=Math.max(x1,x2);x++)for(let o=-Math.floor(w/2);o<=Math.floor(w/2);o++)addPathTile(x,y+o)}
 function addV(y1,y2,x,w=3){for(let y=Math.min(y1,y2);y<=Math.max(y1,y2);y++)for(let o=-Math.floor(w/2);o<=Math.floor(w/2);o++)addPathTile(x+o,y)}
 // Rural road above the bus stop. It bends by grid cells so it still belongs to the tile map.
-addRoadH(0,42,7,2);addRoadH(4,10,9,2);
+addRoadH(0,111,7,2);addRoadH(4,10,9,3);
 // Upper walking route: bus stop -> aquarium entrance -> narrow stair descent.
-addV(14,18,7,3);addH(7,23,18,3);addV(16,18,23,3);addH(23,31,20,3);addV(20,36,31,3);
+addV(14,18,7,3);addH(7,23,18,3);addV(16,20,23,3);addH(23,31,20,3);addV(20,40,31,3);
 // Lower village routes, all aligned to tile coordinates.
-addV(35,40,31,3);addH(18,101,40,3);addV(40,54,30,3);addH(18,45,54,3);addV(54,64,30,3);addH(30,45,64,3);addV(40,58,99,3);addH(92,101,58,3);
+addH(18,103,40,3);addV(38,40,43,3);addV(37,40,62,3);addV(38,40,86,3);addV(40,54,30,3);addH(18,45,54,3);addV(54,66,30,3);addH(30,45,66,3);addV(40,53,102,3);addH(99,102,53,3);addV(53,58,99,3);addH(92,102,58,3);
 const conifers=(()=>{
   const out=[];
   const fill=(x1,x2,y1,y2,dx,dy,phase)=>{
@@ -119,13 +119,18 @@ const conifers=(()=>{
 const darkForest=(()=>{
   const out=[];
   let row=0;
-  for(let ty=1.2;ty<=38;ty+=.92,row++){
+  for(let ty=-1.0;ty<=CONFIG.villageRows+2;ty+=.92,row++){
     const shift=(row%2)*.46;
-    for(let tx=.4+shift;tx<=44;tx+=.92){
+    for(let tx=-1.2+shift;tx<=CONFIG.villageCols+1.5;tx+=.92){
       const x=tx*TILE,y=ty*TILE;
       if(isVillageLandPoint(x,y))continue;
-      const size=1.03+((Math.sin(tx*1.9+ty*2.4)+1)*.5)*.28;
-      out.push({tx:tx+Math.sin(tx*5.3+ty)*.07,ty:ty+Math.cos(ty*4.7-tx)*.07,s:size});
+      const wave=(Math.sin(tx*1.87+ty*2.31)+1)*.5;
+      const size=1.38+wave*.30;
+      out.push({
+        tx:tx+Math.sin(tx*5.1+ty*1.3)*.08,
+        ty:ty+Math.cos(ty*4.6-tx*1.1)*.08,
+        s:size
+      });
     }
   }
   return out;
@@ -307,14 +312,15 @@ function drawLandMass(poly,top,cliff='#4e6749',depth=20){traceTilePoly(poly,0,de
 function drawNarrowStairs(){const x=29.55*TILE-camera.x,y=22.2*TILE-camera.y,w=3.9*TILE,h=12.5*TILE;ctx.fillStyle='#52694b';ctx.fillRect(x-18,y,w+36,h);ctx.fillStyle='#bda06d';ctx.fillRect(x,y,w,h);for(let i=0;i<19;i++){const sy=y+i*(h/19);ctx.fillStyle=i%2?'#aa8d5e':'#c7ab76';ctx.fillRect(x,sy,w,5);ctx.fillStyle='rgba(70,53,35,.22)';ctx.fillRect(x,sy+5,w,2)}ctx.fillStyle='#5c774f';for(let i=0;i<9;i++){ctx.fillRect(x-14,y+9+i*42,10,18);ctx.fillRect(x+w+4,y+28+i*42,10,18)}}
 function drawRoadTiles(){
   ctx.save();
-  const x0=-camera.x,y0=7*TILE-camera.y,w=42*TILE,h=2*TILE;
+  const x0=-camera.x,y0=7*TILE-camera.y,w=CONFIG.villageCols*TILE,h=2*TILE;
   ctx.fillStyle='#a89473';ctx.fillRect(x0-4,y0-5,w+8,h+10);
   ctx.fillStyle='#505758';ctx.fillRect(x0,y0,w,h);
   ctx.fillStyle='rgba(220,225,218,.12)';ctx.fillRect(x0,y0+4,w,3);
   ctx.fillStyle='#d9ca83';
   for(let x=10;x<w-10;x+=46)ctx.fillRect(x0+x,y0+h/2-2,28,4);
-  ctx.fillStyle='#a89473';ctx.fillRect(4*TILE-camera.x,9*TILE-camera.y,6*TILE,2*TILE+5);
-  ctx.fillStyle='#505758';ctx.fillRect(4*TILE-camera.x,9*TILE-camera.y,6*TILE,2*TILE);
+  const px=4*TILE-camera.x,py=9*TILE-camera.y,pw=6*TILE,ph=3*TILE;
+  ctx.fillStyle='#a89473';ctx.fillRect(px-4,py-3,pw+8,ph+6);
+  ctx.fillStyle='#505758';ctx.fillRect(px,py,pw,ph);
   ctx.restore();
 }
 function drawConifer(t){
