@@ -1,0 +1,295 @@
+
+---
+
+0258: <script>
+0259: const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+0260: const W=700,H=438,cx=W/2,cy=H/2+8,R=145;
+0261: // ===== BAR ACCELERATION TUNING =====
+0262: // 이 값들만 수정하면 가속 시스템을 쉽게 튜닝하거나 끌 수 있습니다.
+0263: const BAR_ACCEL_CONFIG = {
+0264:   enabled: true,             // false = 가속 기능만 끄고 기존 1버튼 조작 유지
+0265: 
+0266:   // 전체 속도
+0267:   releaseStartSpeed: 0.01785,  // 손을 뗀 뒤 왼쪽으로 넘어갔을 때 기본 속도
+0268:   pressStartSpeed: 0.01785,    // 누른 뒤 오른쪽으로 넘어갔을 때 기본 속도
+0269:   maxSpeed: 0.0396,           // 양쪽 공통 최대 속도
+
+---
+
+0275:   // 같은 방향으로 오래 유지할 때 추가 가속
+0276:   pressHoldAccel: 0.00026,   // 누르고 있을 때 오른쪽 가속
+0277:   releaseHoldAccel: 0.00026  // 손을 떼고 있을 때 왼쪽 가속
+0278: };
+0279: // ===================================
+0280: let pointer=0, pointerSpeed=-BAR_ACCEL_CONFIG.releaseStartSpeed, fishAngle=Math.random()*Math.PI*2, fishSpeed=.012, fishTargetSpeed=.012;
+0281: const POINTER_MAX_SPEED=BAR_ACCEL_CONFIG.maxSpeed;
+0282: let zone=.34, gauge=50, caught=0, active=true, fishName='-', fishRarity='일반';
+0283: const rarityVisuals={
+0284:  '일반': {body:'#ffd166', glow:'#ffd166', aura:0, particles:0},
+0285:  '고급': {body:'#6fd3ff', glow:'#6fd3ff', aura:7, particles:1},
+0286:  '희귀': {body:'#a986ff', glow:'#b9a2ff', aura:12, particles:3},
+0287:  '에픽': {body:'#ff72c6', glow:'#ff9ed8', aura:17, particles:5},
+0288:  '전설': {body:'#ffe66d', glow:'#fff3a6', aura:24, particles:8}
+
+---
+
+0422:         speed:0.18+Math.random()*0.22,
+0423:         baseSpeed:0.18+Math.random()*0.22,
+0424:         facing:Math.random()<.5?-1:1,
+0425:         retarget:0
+0426:       };
+0427:       chooseTankFishTarget(existing,true);
+0428:     }
+0429:     next.push(existing);
+0430:   }
+0431:   tankFishMotion.length=0;
+0432:   tankFishMotion.push(...next);
+0433: }
+0434: function chooseTankFishTarget(fish,initial=false){
+0435:   fish.tx=mainTank.x+28+Math.random()*(mainTank.w-56);
+0436:   fish.ty=mainTank.y+22+Math.random()*(mainTank.h-58);
+0437: 
+0438:   // 가끔 느리게, 가끔 빠르게 헤엄치도록 목표 속도를 바꾼다.
+0439:   const mood=Math.random();
+0440:   let rarityBoost={일반:0,고급:.03,희귀:.06,에픽:.10,전설:.14}[fish.rarity]||0;
+
+---
+
+0454:     fish.retarget--;
+0455:     const dx=fish.tx-fish.x,dy=fish.ty-fish.y;
+0456:     const dist=Math.hypot(dx,dy);
+0457: 
+0458:     if(dist<8 || fish.retarget<=0){
+0459:       chooseTankFishTarget(fish);
+0460:       continue;
+0461:     }
+0462: 
+0463:     const targetFacing=dx>=0?1:-1;
+0464:     fish.facing=targetFacing;
+0465: 
+
+---
+
+0919: function canMoveVillage(nx,ny){
+0920:   if(nx<20+player.r||nx>W-20-player.r||ny<42+player.r||ny>H-20-player.r) return false;
+0921: 
+0922:   // 연못 물에는 들어갈 수 없고, 데크 영역만 통과 가능.
+0923:   const p=village.pond;
+0924:   const insidePond=nx>p.x-player.r&&nx<p.x+p.w+player.r&&ny>p.y-player.r&&ny<p.y+p.h+player.r;
+0925:   const d=village.dock;
+0926:   const onDock=nx>d.x-player.r&&nx<d.x+d.w+player.r&&ny>d.y-player.r&&ny<d.y+d.h+player.r;
+0927:   if(insidePond&&!onDock) return false;
+0928: 
+0929:   // 마을 건물 충돌
+0930:   const buildings=[
+0931:     {x:76,y:72,w:122,h:88},
+0932:     {x:105,y:203,w:110,h:78}
+0933:   ];
+
+---
+
+1659:   renderShop();
+1660:   renderTankPanel();
+1661: }
+1662: 
+1663: function newFish(){
+1664:  active=true; gauge=50; pointer=0; pointerSpeed=-BAR_ACCEL_CONFIG.releaseStartSpeed; fishAngle=Math.random()*Math.PI*2;
+1665:  let roll=Math.random(), idx;
+1666:  const curiosityActive=economy.equippedBait==='curiosityBait' && (economy.baits.curiosityBait||0)>0;
+1667:  if(curiosityActive){
+1668:    // 호기심 미끼: 일반 60%, 고급 18%, 희귀 10%, 에픽 8%, 전설 4%
+1669:    idx=roll<.40?0:roll<.60?1:roll<.78?2:roll<.88?3:roll<.96?4:5;
+1670:  }else{
+1671:    // 기본 확률: 일반 74%, 고급 14%, 희귀 6.5%, 에픽 4%, 전설 1.5%
+1672:    idx=roll<.47?0:roll<.74?1:roll<.88?2:roll<.945?3:roll<.985?4:5;
+1673:  }
+1674:  let f=fishTable[idx]; fishName=f[0]; fishRarity=f[1];
+1675:  fishSpeed=f[2]*(Math.random()>.5?1:-1); fishTargetSpeed=fishSpeed;
+1676:  activeBait=null;
+1677:  let baitMult=1;
+1678:  if(economy.equippedBait && baitData[economy.equippedBait] && (economy.baits[economy.equippedBait]||0)>0){
+1679:    activeBait=economy.equippedBait;
+1680:    baitMult=baitData[activeBait].barMult||1;
+1681:    economy.baits[activeBait]--;
+1682:    if(economy.baits[activeBait]<=0) economy.equippedBait=null;
+1683:    saveEconomy();
+1684:    renderCollection();
+1685:    renderShop();
+1686:  }
+1687:  zone=f[3]*2*(rodData[economy.equippedRod]?.barMult||1)*baitMult; iceSlowTimer=0;
+1688:  document.getElementById('rarity').textContent=f[1];
+1689:  document.getElementById('fish').textContent=f[0];
+1690:  document.getElementById('msg').textContent=activeBait
+1691:  ? `${activeBait==='curiosityBait'?'✨':'🪱'} ${baitData[activeBait].name} 사용! ${baitData[activeBait].description} · 물고기를 Catch Zone에 맞춰보세요!`
+1692:  : '물고기를 Catch Zone에 맞춰보세요!';
+1693:  updateMoneyUI();
+1694: }
+1695: function angleDiff(a,b){
+1696:  let d=(a-b+Math.PI*3)%(Math.PI*2)-Math.PI; return Math.abs(d);
+1697: }
+1698: function drawFishing(){
+
+---
+
+1706:    ctx.strokeStyle='#8bdcff55';ctx.beginPath();ctx.arc(x,y,2+(i%3),0,Math.PI*2);ctx.stroke();
+1707:  }
+1708:  // circle
+1709:  ctx.strokeStyle='#426b8e';ctx.lineWidth=18;ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.stroke();
+1710:  ctx.strokeStyle='#173b59';ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,R+11,0,Math.PI*2);ctx.stroke();
+1711:  // catch zone wedge
+1712:  let a=pointer, b=pointer+zone;
+1713:  // curved bar catch zone
+1714:  ctx.beginPath();
+1715:  ctx.arc(cx,cy,R,a,b);
+1716:  ctx.strokeStyle='#6ce0a0';ctx.lineWidth=30;ctx.lineCap='round';ctx.stroke();
+1717:  ctx.strokeStyle='#baffd9';ctx.lineWidth=3;ctx.stroke();
+1718:  // fish marker + rarity effects
+1719:  let fx=cx+Math.cos(fishAngle)*R, fy=cy+Math.sin(fishAngle)*R;
+1720:  const rv=rarityVisuals[fishRarity]||rarityVisuals['일반'];
+1721:  const t=performance.now()/1000;
+1722: 
+1723:  if(rv.aura>0){
+1724:    const pulse=rv.aura + Math.sin(t*5)*3;
+1725:    let rg=ctx.createRadialGradient(fx,fy,2,fx,fy,pulse);
+
+---
+
+1751: 
+1752:  ctx.save();
+1753:  ctx.shadowColor=rv.glow;
+1754:  ctx.shadowBlur=rv.aura>0 ? Math.min(18,rv.aura) : 0;
+1755:  ctx.fillStyle=rv.body;
+1756:  ctx.beginPath();ctx.ellipse(fx,fy,12,7,fishAngle,0,Math.PI*2);ctx.fill();
+1757:  ctx.beginPath();
+1758:  ctx.moveTo(fx-Math.cos(fishAngle)*9,fy-Math.sin(fishAngle)*9);
+1759:  ctx.lineTo(fx-Math.cos(fishAngle)*18+Math.sin(fishAngle)*7,fy-Math.sin(fishAngle)*18-Math.cos(fishAngle)*7);
+1760:  ctx.lineTo(fx-Math.cos(fishAngle)*18-Math.sin(fishAngle)*7,fy-Math.sin(fishAngle)*18+Math.cos(fishAngle)*7);
+1761:  ctx.closePath();ctx.fill();
+1762:  ctx.restore();
+1763: 
+1764:  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(fx+3,fy-3,2,0,Math.PI*2);ctx.fill();
+1765: 
+1766:  if(iceSlowTimer>0){
+
+---
+
+1869:    // 핵심 1버튼 조작:
+1870:    // 손을 떼면 왼쪽, 누르면 오른쪽.
+1871:    // 양쪽 모두 방향 전환 후 오래 유지하면 각각 maxSpeed까지 가속.
+1872:    const rightHeld=keys.ArrowRight||keys.d||keys.touchRight||keys.mouseRight;
+1873: 
+1874:    if(BAR_ACCEL_CONFIG.enabled){
+1875:      if(rightHeld){
+1876:        // 왼쪽에서 오른쪽으로 전환
+1877:        if(pointerSpeed < 0){
+1878:          pointerSpeed=Math.min(
+1879:            0,
+1880:            pointerSpeed + BAR_ACCEL_CONFIG.pressTurnAccel
+1881:          );
+1882:        }else if(pointerSpeed < BAR_ACCEL_CONFIG.pressStartSpeed){
+1883:          pointerSpeed=Math.min(
+1884:            BAR_ACCEL_CONFIG.pressStartSpeed,
+1885:            pointerSpeed + BAR_ACCEL_CONFIG.pressTurnAccel
+1886:          );
+1887:        }else{
+1888:          pointerSpeed=Math.min(
+1889:            BAR_ACCEL_CONFIG.maxSpeed,
+1890:            pointerSpeed + BAR_ACCEL_CONFIG.pressHoldAccel
+1891:          );
+1892:        }
+1893:      }else{
+1894:        // 오른쪽에서 왼쪽으로 전환
+1895:        if(pointerSpeed > 0){
+1896:          pointerSpeed=Math.max(
+1897:            0,
+1898:            pointerSpeed - BAR_ACCEL_CONFIG.releaseTurnAccel
+1899:          );
+1900:        }else if(pointerSpeed > -BAR_ACCEL_CONFIG.releaseStartSpeed){
+1901:          pointerSpeed=Math.max(
+1902:            -BAR_ACCEL_CONFIG.releaseStartSpeed,
+1903:            pointerSpeed - BAR_ACCEL_CONFIG.releaseTurnAccel
+1904:          );
+1905:        }else{
+1906:          pointerSpeed=Math.max(
+1907:            -BAR_ACCEL_CONFIG.maxSpeed,
+1908:            pointerSpeed - BAR_ACCEL_CONFIG.releaseHoldAccel
+1909:          );
+1910:        }
+1911:      }
+1912:    }else{
+1913:      // 가속 기능만 꺼도 1버튼 구조는 그대로 유지.
+1914:      pointerSpeed = rightHeld
+1915:        ? BAR_ACCEL_CONFIG.pressStartSpeed
+1916:        : -BAR_ACCEL_CONFIG.releaseStartSpeed;
+1917:    }
+1918: 
+1919:    pointer+=pointerSpeed;
+1920:    const speedDebug=document.getElementById('barSpeedDebug');
+1921:    if(speedDebug){
+1922:      const pct=Math.round(Math.min(1,Math.abs(pointerSpeed)/BAR_ACCEL_CONFIG.maxSpeed)*100);
+1923:      speedDebug.textContent=`바 속도: ${pct}% · ${rightHeld?'오른쪽 가속':'왼쪽 가속'}`;
+1924:    }
+1925:    pointer=(pointer+Math.PI*2)%(Math.PI*2);
+1926: 
+1927:    // Fish movement also has inertia: turns slow down first, then build speed in the new direction.
+1928:    if(Math.random()<0.010) fishTargetSpeed*=-1;
+1929:    if(Math.random()<0.013){
+1930:      const base=Math.max(0.006,Math.abs(fishTargetSpeed));
+1931:      const varied=Math.min(0.033,Math.max(0.006,base+(Math.random()-.5)*0.010));
+1932:      fishTargetSpeed=Math.sign(fishTargetSpeed||1)*varied;
+1933:    }
+1934:    fishTargetSpeed=Math.max(-0.033,Math.min(0.033,fishTargetSpeed));
+1935:    fishSpeed += (fishTargetSpeed-fishSpeed)*0.085;
+1936:    const slowFactor=iceSlowTimer>0?0.32:1;
+1937:    fishAngle=(fishAngle+fishSpeed*slowFactor+Math.PI*2)%(Math.PI*2);
+1938:    if(iceSlowTimer>0) iceSlowTimer--;
+1939:    let inside=angleDiff(pointer+zone/2,fishAngle)<zone/2;
+1940:    gauge += inside?.32:-.16;
+1941:    gauge=Math.max(0,Math.min(100,gauge));
+1942:    if(gauge>=100){
+1943:      active=false;
+1944:      caught++;
+1945:      registerCatch(fishName,fishRarity);
+1946:      document.getElementById('caught').textContent=caught;
+
+---
+
+2011: addEventListener('keyup',e=>keys[e.key]=false);
+2012: function bindHold(id,key){
+2013:  const el=document.getElementById(id);
+2014:  const on=ev=>{ev.preventDefault();keys[key]=true};
+2015:  const off=ev=>{ev.preventDefault();keys[key]=false};
+2016:  el.addEventListener('pointerdown',on); el.addEventListener('pointerup',off);
+2017:  el.addEventListener('pointercancel',off); el.addEventListener('pointerleave',off);
+2018: }
+2019: bindHold('rightBtn','touchRight');
+2020: bindHold('moveUp','touchUp');
+2021: bindHold('moveDown','touchDown');
+2022: bindHold('moveLeft','touchLeft');
+
+---
+
+2024: document.getElementById('interactBtn').onclick=()=>{if(gameMode==='aquarium')aquariumInteract();else if(gameMode==='fishingMap')fishingMapInteract();};
+2025: document.getElementById('returnAquarium').onclick=()=>{resetMapFishing('다시 낚시 포인트를 선택하세요.');setGameMode('fishingMap');};
+2026: 
+2027: // PC 마우스: 좌클릭 홀드 = 오른쪽, 좌클릭 해제 = 자동 왼쪽.
+2028: // 기존 A/D, ←/→ 및 모바일 홀드 조작도 그대로 유지.
+2029: window.addEventListener('mousedown',e=>{
+2030:   if(e.button===0 && gameMode==='fishing' && active){
+2031:     keys.mouseRight=true;
+2032:     e.preventDefault();
+2033:   }
+2034: });
+2035: canvas.addEventListener('pointerdown',e=>{
+2036:   if(gameMode==='fishingMap' && mapFishingState==='bite'){
+2037:     e.preventDefault();
+2038:     tryHookFish();
+2039:   }
+2040: });
+2041: window.addEventListener('mouseup',e=>{
+2042:   if(e.button===0) keys.mouseRight=false;
+2043: });
+2044: window.addEventListener('blur',()=>{ keys.mouseRight=false; });
+2045: 
+2046: 
+2047: 
