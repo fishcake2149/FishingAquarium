@@ -1,0 +1,76 @@
+:root{
+  --ink:#2d241c;--paper:#f6edcf;--wood:#7b5637;--wood-dark:#4b3425;
+  --ui:#21383a;--ui2:#15292c;--line:#d8bd83;--mint:#8fd2b5;--gold:#ffd66b;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#0d1718;color:#f8f0d7}
+body{display:grid;place-items:center;font-family:"Galmuri9","DungGeunMo","NanumGothicCoding",ui-monospace,monospace;overflow:hidden}
+button{font:inherit;color:inherit;border:0;cursor:pointer;user-select:none;-webkit-user-select:none}
+#app{width:100vw;height:100vh;display:grid;place-items:center;padding:10px}
+#gameShell{position:relative;width:min(100%,calc(100vh * 16 / 9));aspect-ratio:16/9;background:#101d1e;border:4px solid #5c4731;box-shadow:0 18px 60px #000b;overflow:hidden;image-rendering:pixelated}
+#worldLayer{position:absolute;inset:0;overflow:hidden;transition:filter .16s ease}
+#worldLayer.blurred{filter:blur(2px) brightness(.55) saturate(.8)}
+#gameCanvas{display:block;width:100%;height:100%;image-rendering:pixelated;background:#8ab57f}
+.hudBox{position:absolute;background:linear-gradient(180deg,#21383aee,#14292cee);border:2px solid #d1b677;border-radius:8px;box-shadow:0 5px 0 #0004;padding:8px;backdrop-filter:blur(1px)}
+#topHud{right:12px;top:12px;width:min(355px,39%)}
+.hudLocation{font-weight:900;color:#ffe8a9;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hudStatus{display:flex;justify-content:space-between;gap:8px;font-size:12px;margin:5px 0 7px;color:#cfe8dd}
+.hudButtons{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.hudButtons button{background:#355356;border:1px solid #6f8c7f;border-radius:5px;padding:6px 4px;font-size:11px}
+.hudButtons button:hover{filter:brightness(1.15)}
+#moneyHud{left:12px;top:12px;display:flex;gap:9px;align-items:center;font-size:12px}
+#moneyHud b{font-size:16px;color:var(--gold)}
+#pendingRevenueText{color:#b8d7cb}
+#bagHud{right:12px;bottom:12px;width:168px;padding:7px}
+.bagHeader{display:flex;justify-content:space-between;font-size:10px;margin-bottom:5px;color:#f6df9f}
+.bagMiniGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.bagSlot{height:42px;border:2px solid #806845;background:#14272a;position:relative;border-radius:4px;display:grid;place-items:center;text-align:center;font-size:8px;line-height:1.05;overflow:hidden}
+.bagSlot.empty{opacity:.48}
+.bagSlot .qty{position:absolute;right:2px;bottom:1px;color:#fff3b5;background:#0008;padding:0 2px;border-radius:2px;font-size:9px}
+.bagSlot .icon{font-size:16px;line-height:1}
+.castGaugeWrap{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);width:min(420px,48%);background:#15292cee;border:2px solid #d7b978;border-radius:8px;padding:8px 10px;box-shadow:0 7px 0 #0005}
+.castTitle{text-align:center;font-size:11px;color:#ffe3a0;margin-bottom:4px}
+.castGaugeTrack{height:18px;position:relative;border:2px solid #4a3d2d;background:linear-gradient(90deg,#8bd6d1,#5b9fbb 48%,#315b88);overflow:hidden;border-radius:3px}
+#castGaugeFill{height:100%;width:0;background:#fff4b044;pointer-events:none}
+#castGaugeMarker{position:absolute;top:-2px;bottom:-2px;width:4px;background:#fff7c9;box-shadow:0 0 0 1px #583d27;left:0}
+.castHint{text-align:center;font-size:9px;margin-top:5px;color:#c8ddd5}
+.toast{position:absolute;left:50%;top:18%;transform:translateX(-50%);background:#f5e8c7;color:#35271c;border:4px double #6b4b2f;border-radius:6px;padding:9px 16px;font-weight:900;font-size:14px;box-shadow:0 7px 0 #0004;max-width:68%;text-align:center;z-index:8}
+.resetButton{position:absolute;left:8px;bottom:8px;background:#26383acc;border:1px solid #8c7a5c;border-radius:4px;padding:4px 6px;font-size:8px;opacity:.55}
+.resetButton:hover{opacity:1}
+.hidden{display:none!important}
+.modalLayer,.fishingOverlay{position:absolute;inset:0;z-index:20;display:grid;place-items:center}
+.modalBackdrop{position:absolute;inset:0;background:#08131499}
+.modalCard{position:relative;width:min(720px,78%);max-height:82%;overflow:auto;background:linear-gradient(180deg,#f6edcf,#e5d09d);color:var(--ink);border:5px solid #6c4c31;box-shadow:0 12px 0 #0005;padding:18px;border-radius:8px;image-rendering:pixelated}
+.modalClose{position:sticky;float:right;top:0;background:#73513b;color:#fff;width:32px;height:30px;border-radius:4px;font-size:18px;z-index:2}
+.panelTitle{font-weight:900;font-size:18px;margin:0 38px 12px 0;color:#4c3827}
+.panelSub{font-size:10px;color:#725f45;line-height:1.5;margin-bottom:10px}
+.panelGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.panelCard{background:#fff8df;border:2px solid #a98b5b;border-radius:6px;padding:9px;min-height:82px;font-size:10px;line-height:1.4}
+.panelCard b{display:block;font-size:12px;margin-bottom:4px;color:#4b3624}
+.panelCard button,.panelAction{background:#4f7167;color:white;border:2px solid #355047;border-radius:5px;padding:6px 8px;margin-top:6px;font-size:10px}
+.panelCard button:disabled{opacity:.35;cursor:not-allowed}
+.panelAction.alt{background:#72533d}
+.panelAction.gold{background:#9b7330}
+.inventoryGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;max-width:420px}
+.inventorySlot{min-height:76px;border:3px solid #98794d;background:#fff9e6;padding:7px;position:relative;border-radius:5px;font-size:9px}
+.inventorySlot .slotNo{position:absolute;right:4px;top:2px;color:#9b8768;font-size:8px}
+.inventorySlot .bigIcon{font-size:22px;display:block;margin:6px 0 2px}
+.inventorySlot .quantity{font-weight:900;color:#6f4c25}
+.equipmentSlots{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.equipSlot{background:#fff8df;border:3px solid #a78555;border-radius:6px;padding:10px;text-align:center;font-size:9px;min-height:92px}
+.equipSlot strong{display:block;color:#5a3e27;margin-bottom:6px;font-size:11px}
+.managerRow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}
+.managerPrice{font-size:24px;font-weight:900;color:#7f5d20;min-width:80px;text-align:center}
+.shopTabs{display:flex;gap:6px;margin-bottom:10px}.shopTabs button{background:#7a6241;padding:7px 10px;border-radius:4px}.shopTabs button.active{background:#4f7167}
+.settlement{border:3px double #8b6d43;background:#fff9e5;padding:12px;margin-top:8px;font-size:11px;line-height:1.6}
+.fishingOverlay{background:#07111144}
+#fishingCanvas{width:min(62vh,54vw);height:min(62vh,54vw);max-width:540px;max-height:540px;image-rendering:pixelated;filter:drop-shadow(0 10px 18px #0008)}
+.fishingReadout{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);width:min(520px,56%);background:#15292cf2;border:3px solid #d6b777;border-radius:8px;padding:9px 12px;text-align:center;font-size:11px;box-shadow:0 7px 0 #0005}
+#fishingSpecies{color:#ffe7a2;font-size:15px}.fishingReadout>div:first-child{display:flex;justify-content:space-between}
+.catchGauge{height:14px;border:2px solid #6f5b3a;background:#081516;margin:7px 0;border-radius:4px;overflow:hidden}
+#catchGaugeFill{height:100%;width:50%;background:linear-gradient(90deg,#e9c85e,#7fd9a3)}
+.fishingHint{color:#c8ded3;font-size:9px}
+#iceBombButton{background:#4a7790;border:2px solid #86bbce;border-radius:5px;padding:5px 8px;margin-top:6px;font-size:9px}
+.controls{position:fixed;left:50%;bottom:4px;transform:translateX(-50%);margin:0;font-size:10px;color:#b8c6be;pointer-events:none}
+@media(max-aspect-ratio:4/3){#topHud{width:43%;}.hudButtons button{font-size:9px}.bagSlot{height:34px}#bagHud{width:140px}.controls{display:none}}
+@media(max-width:700px){#app{padding:0}#gameShell{border-width:0}.hudBox{border-width:1px}.modalCard{width:90%;max-height:86%;}.equipmentSlots{grid-template-columns:1fr 1fr}.toast{font-size:11px}}
