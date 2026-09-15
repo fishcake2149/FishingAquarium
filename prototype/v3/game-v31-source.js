@@ -70,23 +70,29 @@ function loadGame(){try{const raw=localStorage.getItem(CONFIG.saveKey);if(raw)no
 function saveGame(){try{localStorage.setItem(CONFIG.saveKey,JSON.stringify(state))}catch(e){console.warn('save failed',e)}}
 
 // --- Larger pond village world ------------------------------------------------
-const pond={cx:67*TILE,cy:50*TILE,rx:27*TILE,ry:15*TILE};
+const pond={cx:70*TILE,cy:54*TILE,rx:23*TILE,ry:13*TILE};
+const UPPER_LAND=[[2,7],[8,5],[18,5],[24,4],[35,6],[40,10],[40,18],[36,22],[33,22],[33,26],[29,26],[29,23],[22,23],[16,25],[8,23],[3,19]];
+const LOWER_LAND=[[28,32],[38,30],[50,32],[62,30],[76,31],[90,29],[102,33],[108,40],[106,49],[109,58],[104,66],[94,70],[82,69],[70,71],[57,68],[44,71],[30,69],[18,66],[11,59],[9,49],[12,40],[19,35]];
+function pointInPoly(tx,ty,poly){let inside=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1],cross=((yi>ty)!=(yj>ty))&&(tx<(xj-xi)*(ty-yi)/(yj-yi||1e-9)+xi);if(cross)inside=!inside}return inside}
+function isVillageLandPoint(x,y){const tx=x/TILE,ty=y/TILE;return pointInPoly(tx,ty,UPPER_LAND)||pointInPoly(tx,ty,LOWER_LAND)||(tx>=29&&tx<=33&&ty>=20&&ty<=35)}
+function playerFitsVillageLand(x,y,r=14){const d=r*.7;return [[0,0],[r,0],[-r,0],[0,r],[0,-r],[d,d],[d,-d],[-d,d],[-d,-d]].every(([ox,oy])=>isVillageLandPoint(x+ox,y+oy))}
 const buildings=[
-{id:'aquarium',tx:18,ty:8,tw:12,th:8,label:'낡은 아쿠아리움',kind:'aquarium',roof:'#66766d',wall:'#d4bf92',sign:'AQUARIUM'},
-{id:'shop',tx:43,ty:10,tw:9,th:7,label:'마르코 상점',kind:'shop',roof:'#a85c55',wall:'#e0bd76',sign:'연못 상점'},
-{id:'workshop',tx:66,ty:11,tw:10,th:7,label:'브루노 작업장',kind:'workshop',roof:'#765a48',wall:'#c99a65',sign:'수리 작업장'},
-{id:'homeA',tx:88,ty:10,tw:8,th:7,label:'로한의 집',kind:'home',roof:'#855d52',wall:'#dfbc7e',sign:''},
-{id:'homeB',tx:98,ty:25,tw:8,th:7,label:'연못마을 주택',kind:'home',roof:'#8e625b',wall:'#d9b67b',sign:''},
-{id:'homeC',tx:10,ty:39,tw:8,th:7,label:'연못마을 주택',kind:'home',roof:'#796457',wall:'#dec18a',sign:''},
-{id:'homeD',tx:27,ty:52,tw:8,th:7,label:'연못마을 주택',kind:'home',roof:'#8a6556',wall:'#d7b67f',sign:''}
+{id:'aquarium',tx:17,ty:8,tw:12,th:8,label:'낡은 아쿠아리움',kind:'aquarium',roof:'#66766d',wall:'#d4bf92',sign:'AQUARIUM'},
+{id:'shop',tx:39,ty:32,tw:9,th:7,label:'마르코 상점',kind:'shop',roof:'#a85c55',wall:'#e0bd76',sign:'연못 상점'},
+{id:'workshop',tx:57,ty:31,tw:10,th:7,label:'브루노 작업장',kind:'workshop',roof:'#765a48',wall:'#c99a65',sign:'수리 작업장'},
+{id:'homeA',tx:82,ty:32,tw:8,th:7,label:'로한의 집',kind:'home',roof:'#855d52',wall:'#dfbc7e',sign:''},
+{id:'homeB',tx:98,ty:46,tw:8,th:7,label:'연못마을 주택',kind:'home',roof:'#8e625b',wall:'#d9b67b',sign:''},
+{id:'homeC',tx:15,ty:47,tw:8,th:7,label:'연못마을 주택',kind:'home',roof:'#796457',wall:'#dec18a',sign:''},
+{id:'homeD',tx:27,ty:59,tw:8,th:7,label:'연못마을 주택',kind:'home',roof:'#8a6556',wall:'#d7b67f',sign:''}
 ];
 const busShelter=rect(4*TILE,11*TILE,5*TILE,2.4*TILE);
-const rocks=[rect(36*TILE,55*TILE,1.5*TILE,1.3*TILE),rect(91*TILE,51*TILE,1.7*TILE,1.5*TILE),rect(43*TILE,66*TILE,1.3*TILE,1.2*TILE),rect(79*TILE,67*TILE,1.5*TILE,1.2*TILE),rect(102*TILE,57*TILE,1.5*TILE,1.4*TILE)];
+const rocks=[rect(20*TILE,55*TILE,1.5*TILE,1.3*TILE),rect(96*TILE,60*TILE,1.7*TILE,1.5*TILE),rect(42*TILE,66*TILE,1.3*TILE,1.2*TILE),rect(89*TILE,67*TILE,1.5*TILE,1.2*TILE),rect(103*TILE,39*TILE,1.5*TILE,1.4*TILE)];
 const pathTiles=new Set();
 const addPathTile=(x,y)=>pathTiles.add(`${x},${y}`);
 function addH(x1,x2,y,w=3){for(let x=Math.min(x1,x2);x<=Math.max(x1,x2);x++)for(let o=-Math.floor(w/2);o<=Math.floor(w/2);o++)addPathTile(x,y+o)}
 function addV(y1,y2,x,w=3){for(let y=Math.min(y1,y2);y<=Math.max(y1,y2);y++)for(let o=-Math.floor(w/2);o<=Math.floor(w/2);o++)addPathTile(x+o,y)}
-addH(7,22,15,3);addV(15,18,22,3);addH(22,47,18,3);addV(18,20,47,3);addH(47,71,20,3);addH(71,92,20,3);addV(20,28,92,3);addH(92,102,28,3);addV(20,37,60,3);addH(43,60,37,3);addV(37,43,43,3);addH(16,43,43,3);addV(43,56,32,3);addH(32,47,56,3);addV(20,35,80,3);addH(80,95,35,3);
+addH(7,27,15,3);addV(15,21,27,3);addH(27,31,21,3);addV(21,36,31,2);
+addV(35,40,31,3);addH(18,101,40,3);addV(40,54,30,3);addH(18,45,54,3);addV(54,64,30,3);addH(30,45,64,3);addV(40,58,99,3);addH(92,101,58,3);
 
 const decoRand=seeded(2219451);
 const grassTufts=Array.from({length:520},()=>({x:decoRand()*CONFIG.villageCols*TILE,y:decoRand()*CONFIG.villageRows*TILE,t:decoRand()}));
@@ -103,7 +109,7 @@ const shoreStones=Array.from({length:31},()=>{const a=shoreRand()*Math.PI*2,sc=p
 const lilyPads=Array.from({length:23},()=>{const a=shoreRand()*Math.PI*2,rr=.15+shoreRand()*.78,sc=pondBoundaryScale(a)*rr;return{x:pond.cx+Math.cos(a)*pond.rx*sc,y:pond.cy+Math.sin(a)*pond.ry*sc,s:5+shoreRand()*7,flower:shoreRand()>.72}});
 const pondRipples=Array.from({length:13},()=>{const a=shoreRand()*Math.PI*2,rr=.15+shoreRand()*.72,sc=pondBoundaryScale(a)*rr;return{x:pond.cx+Math.cos(a)*pond.rx*sc,y:pond.cy+Math.sin(a)*pond.ry*sc,p:shoreRand()*Math.PI*2}});
 function playerTouchesPond(x,y,r=18){const d=r*.72;return [[0,0],[r,0],[-r,0],[0,r],[0,-r],[d,d],[d,-d],[-d,d],[-d,-d]].some(([ox,oy])=>pondNorm(x+ox,y+oy)<1.018)}
-function isSolidVillage(x,y,r=10){const z=sceneSize();if(x-r<0||y-r<0||x+r>z.w||y+r>z.h)return true;if(playerTouchesPond(x,y,Math.max(17,r)))return true;if(buildings.some(b=>circleRectHit(x,y,r,tileRect(b))))return true;if(rocks.some(o=>circleRectHit(x,y,r,o)))return true;if(circleRectHit(x,y,r,busShelter))return true;return false}
+function isSolidVillage(x,y,r=10){const z=sceneSize();if(x-r<0||y-r<0||x+r>z.w||y+r>z.h)return true;if(!playerFitsVillageLand(x,y,Math.max(12,r)))return true;if(playerTouchesPond(x,y,Math.max(17,r)))return true;if(buildings.some(b=>circleRectHit(x,y,r,tileRect(b))))return true;if(rocks.some(o=>circleRectHit(x,y,r,o)))return true;if(circleRectHit(x,y,r,busShelter))return true;return false}
 
 // --- Aquarium interior --------------------------------------------------------
 const aquariumTank=rect(9*TILE,5*TILE,15*TILE,5*TILE),managerRoom=rect(46*TILE,4*TILE,13*TILE,10*TILE),managerDesk=rect(50*TILE,7*TILE,3*TILE,2*TILE),aquariumExit=rect(4*TILE,27*TILE,3*TILE,2*TILE),managerDoor=rect(50*TILE,13.58*TILE,3*TILE,.42*TILE),managerWalls=[rect(46*TILE,4*TILE,13*TILE,.42*TILE),rect(46*TILE,4*TILE,.42*TILE,10*TILE),rect(58.58*TILE,4*TILE,.42*TILE,10*TILE),rect(46*TILE,13.58*TILE,4*TILE,.42*TILE),rect(53*TILE,13.58*TILE,6*TILE,.42*TILE)];
@@ -120,18 +126,18 @@ function isPositionFree(x,y,r=10){return state.scene==='village'?!isSolidVillage
 
 // --- Village NPCs (Marco is intentionally NOT outside anymore) ----------------
 const npcDefs=[
-{id:'rohan',name:'로한',x:39*TILE,y:48*TILE,style:{hair:'#3a332e',body:'#315863',accent:'#31444b',skin:'#d5a37b'},speed:46},
-{id:'yotri',name:'요트리',x:91*TILE,y:23*TILE,style:{hair:'#453553',body:'#7b638e',accent:'#d8a8c4',skin:'#e1b08e'},speed:50},
+{id:'rohan',name:'로한',x:45*TILE,y:52*TILE,style:{hair:'#3a332e',body:'#315863',accent:'#31444b',skin:'#d5a37b'},speed:46},
+{id:'yotri',name:'요트리',x:96*TILE,y:55*TILE,style:{hair:'#453553',body:'#7b638e',accent:'#d8a8c4',skin:'#e1b08e'},speed:50},
 {id:'luka',name:'루카',x:10*TILE,y:15*TILE,style:{hair:'#6b4a2f',body:'#4d78a3',accent:'#efd185',skin:'#e3ad80'},speed:53},
-{id:'bruno',name:'브루노',x:72*TILE,y:20*TILE,style:{hair:'#57443a',body:'#846541',accent:'#9ca29d',skin:'#d1a078'},speed:44},
-{id:'resident1',name:'주민',x:36*TILE,y:22*TILE,style:{hair:'#503a35',body:'#6c8872',accent:'#d6bd75',skin:'#daa87c'},speed:42},
-{id:'resident2',name:'주민',x:93*TILE,y:37*TILE,style:{hair:'#3c3b45',body:'#9b715e',accent:'#d7a8a2',skin:'#dba67d'},speed:46},
-{id:'resident3',name:'주민',x:38*TILE,y:58*TILE,style:{hair:'#5d4939',body:'#7891a5',accent:'#c7b56d',skin:'#d9a57d'},speed:44}
+{id:'bruno',name:'브루노',x:62*TILE,y:40*TILE,style:{hair:'#57443a',body:'#846541',accent:'#9ca29d',skin:'#d1a078'},speed:44},
+{id:'resident1',name:'주민',x:37*TILE,y:41*TILE,style:{hair:'#503a35',body:'#6c8872',accent:'#d6bd75',skin:'#daa87c'},speed:42},
+{id:'resident2',name:'주민',x:96*TILE,y:41*TILE,style:{hair:'#3c3b45',body:'#9b715e',accent:'#d7a8a2',skin:'#dba67d'},speed:46},
+{id:'resident3',name:'주민',x:31*TILE,y:57*TILE,style:{hair:'#5d4939',body:'#7891a5',accent:'#c7b56d',skin:'#d9a57d'},speed:44}
 ],npcs=npcDefs.map(d=>({...d,path:[],pathIndex:0,repath:Math.random()*2,dir:'down',moving:false}));
 const tileKey=(x,y)=>`${x},${y}`;
-function npcBlocked(tx,ty){if(tx<0||ty<0||tx>=CONFIG.villageCols||ty>=CONFIG.villageRows)return true;const x=(tx+.5)*TILE,y=(ty+.5)*TILE;if(pondNorm(x,y)<1.03)return true;if(buildings.some(b=>rectContains(tileRect(b),x,y)))return true;if(rocks.some(r=>rectContains(r,x,y)))return true;if(rectContains(busShelter,x,y))return true;return false}
+function npcBlocked(tx,ty){if(tx<0||ty<0||tx>=CONFIG.villageCols||ty>=CONFIG.villageRows)return true;const x=(tx+.5)*TILE,y=(ty+.5)*TILE;if(!isVillageLandPoint(x,y))return true;if(pondNorm(x,y)<1.03)return true;if(buildings.some(b=>rectContains(tileRect(b),x,y)))return true;if(rocks.some(r=>rectContains(r,x,y)))return true;if(rectContains(busShelter,x,y))return true;return false}
 function findPath(sx,sy,ex,ey,max=2600){const start={x:Math.floor(sx/TILE),y:Math.floor(sy/TILE)},end={x:Math.floor(ex/TILE),y:Math.floor(ey/TILE)};if(npcBlocked(end.x,end.y))return[];const open=[{...start,g:0,f:Math.abs(end.x-start.x)+Math.abs(end.y-start.y)}],came=new Map(),score=new Map([[tileKey(start.x,start.y),0]]);let visited=0;while(open.length&&visited++<max){open.sort((a,b)=>a.f-b.f);const c=open.shift();if(c.x===end.x&&c.y===end.y){const out=[];let n={x:end.x,y:end.y};while(n.x!==start.x||n.y!==start.y){out.push({x:(n.x+.5)*TILE,y:(n.y+.5)*TILE});const p=came.get(tileKey(n.x,n.y));if(!p)break;n=p}return out.reverse()}for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=c.x+dx,ny=c.y+dy;if(npcBlocked(nx,ny))continue;const ng=c.g+1,k=tileKey(nx,ny);if(ng>=(score.get(k)??Infinity))continue;score.set(k,ng);came.set(k,{x:c.x,y:c.y});open.push({x:nx,y:ny,g:ng,f:ng+Math.abs(end.x-nx)+Math.abs(end.y-ny)})}}return[]}
-function npcTarget(n){const h=gameHour();switch(n.id){case'rohan':return h>=6&&h<19?{x:40*TILE,y:48*TILE}:{x:92*TILE,y:20*TILE};case'yotri':return isNight()?{x:93*TILE,y:45*TILE}:{x:91*TILE,y:23*TILE};case'luka':return h>=7&&h<18?{x:10*TILE,y:15*TILE}:{x:91*TILE,y:20*TILE};case'bruno':return h>=6&&h<20?{x:72*TILE,y:20*TILE}:{x:78*TILE,y:23*TILE};case'resident1':return h<12?{x:36*TILE,y:22*TILE}:{x:48*TILE,y:36*TILE};case'resident2':return h<16?{x:93*TILE,y:37*TILE}:{x:98*TILE,y:40*TILE};case'resident3':return h<15?{x:38*TILE,y:58*TILE}:{x:38*TILE,y:43*TILE};default:return{x:n.x,y:n.y}}}
+function npcTarget(n){const h=gameHour();switch(n.id){case'rohan':return h>=6&&h<19?{x:45*TILE,y:52*TILE}:{x:86*TILE,y:40*TILE};case'yotri':return isNight()?{x:96*TILE,y:57*TILE}:{x:91*TILE,y:41*TILE};case'luka':return h>=7&&h<18?{x:10*TILE,y:15*TILE}:{x:25*TILE,y:20*TILE};case'bruno':return h>=6&&h<20?{x:62*TILE,y:40*TILE}:{x:69*TILE,y:41*TILE};case'resident1':return h<12?{x:37*TILE,y:41*TILE}:{x:28*TILE,y:52*TILE};case'resident2':return h<16?{x:96*TILE,y:41*TILE}:{x:100*TILE,y:58*TILE};case'resident3':return h<15?{x:31*TILE,y:57*TILE}:{x:38*TILE,y:64*TILE};default:return{x:n.x,y:n.y}}}
 function updateNpcs(dt){if(state.scene!=='village'||ui.modal||fishing)return;for(const n of npcs){n.repath-=dt;if(n.repath<=0){n.repath=4+Math.random()*2;const t=npcTarget(n);if(t&&Number.isFinite(t.x)&&Number.isFinite(t.y)&&dist(n.x,n.y,t.x,t.y)>22){n.path=findPath(n.x,n.y,t.x,t.y);n.pathIndex=0}}const p=n.path[n.pathIndex];if(!p){n.moving=false;continue}const dx=p.x-n.x,dy=p.y-n.y,d=Math.hypot(dx,dy);if(d<3){n.pathIndex++;n.moving=false;continue}n.moving=true;if(Math.abs(dx)>Math.abs(dy))n.dir=dx<0?'left':'right';else n.dir=dy<0?'up':'down';const sp=n.speed*dt;n.x+=dx/d*sp;n.y+=dy/d*sp}}
 
 // --- Economy / inventory / time ----------------------------------------------
@@ -247,7 +253,7 @@ function handleModalAction(action,id,kind,uid){if(action==='equipRod'){state.equ
 
 // --- HUD ---------------------------------------------------------------------
 function questInfo(){if(!state.story.firstTankRepaired)return{title:'다시 물이 흐르도록',text:'브루노에게 말을 걸어 첫 수조를 확인하세요.'};if(state.story.stage<=1)return{title:'첫 번째 생명',text:'연못 물가에서 수심 색을 보고 낚시해 생물을 한 마리 잡아보세요.'};if(state.story.stage===2)return{title:'첫 번째 전시',text:'아쿠아리움 메인 수조에 잡은 생물을 한 마리 전시하세요.'};return{title:'작은 재개장',text:'낚시·전시·판매를 이어가며 아쿠아리움을 키워보세요.'}}
-function locationName(){if(state.scene==='shop')return'연못 마을 · 마르코 상점';if(state.scene==='aquarium'){if(rectContains(managerRoom,state.player.x,state.player.y))return'연못 마을 · 아쿠아리움 관리자실';return'연못 마을 · 낡은 아쿠아리움'}const p=state.player;if(p.x<14*TILE&&p.y<23*TILE)return'연못 마을 · 버스정류장';if(pondNorm(p.x,p.y)<1.35)return'연못 마을 · 중앙 연못';if(p.x<36*TILE&&p.y<28*TILE)return'연못 마을 · 아쿠아리움 언덕';if(p.x<60*TILE&&p.y<30*TILE)return'연못 마을 · 상점길';if(p.x<84*TILE&&p.y<30*TILE)return'연못 마을 · 작업장길';return'연못 마을'}
+function locationName(){if(state.scene==='shop')return'연못 마을 · 마르코 상점';if(state.scene==='aquarium'){if(rectContains(managerRoom,state.player.x,state.player.y))return'연못 마을 · 아쿠아리움 관리자실';return'연못 마을 · 낡은 아쿠아리움'}const p=state.player;if(p.y<27*TILE)return p.x<14*TILE?'연못 마을 · 버스정류장':'연못 마을 · 아쿠아리움 언덕';if(p.y<38*TILE&&p.x>27*TILE&&p.x<36*TILE)return'연못 마을 · 내리막 계단길';if(pondNorm(p.x,p.y)<1.35)return'연못 마을 · 중앙 연못';if(p.y<46*TILE)return'연못 마을 · 윗마을';if(p.x<40*TILE)return'연못 마을 · 서쪽 주택가';if(p.x>92*TILE)return'연못 마을 · 동쪽 주택가';return'연못 마을'}
 function refreshHud(force=false){const bucket=Math.floor(performance.now()/250);if(!force&&bucket===ui.lastHud)return;ui.lastHud=bucket;dom.dateText.textContent=`${state.day}일`;dom.timeText.textContent=fmtTime(state.minute);dom.weatherText.textContent=`${currentWeather().icon} ${currentWeather().name}`;dom.locationText.textContent=locationName();dom.moneyText.textContent=`${state.money}G`;const q=questInfo();dom.questTitle.textContent=q.title;dom.questText.textContent=q.text;const stacks=[];for(const[id,n]of Object.entries(state.inventory.fish))if(n>0)stacks.push({icon:SPECIES[id].icon,name:SPECIES[id].name,q:n});for(const[id,n]of Object.entries(state.inventory.items))if(n>0)stacks.push({icon:ITEMS[id].icon,name:ITEMS[id].name,q:n});dom.bagUsage.textContent=`${stacks.length}/${state.inventory.capacity}`;dom.bagGrid.innerHTML=Array.from({length:state.inventory.capacity},(_,i)=>{const s=stacks[i];return s?`<div class="bag-slot" title="${s.name}"><span class="icon">${s.icon}</span><span class="name">${s.name}</span><span class="qty">×${s.q}</span></div>`:'<div class="bag-slot empty"></div>'}).join('');dom.buildButton.classList.toggle('hidden',state.scene!=='aquarium');dom.iceBombCount.textContent=`×${itemCount('iceBomb')}`;updateInteractionHint()}
 function updateInteractionHint(){if(ui.modal||fishing||buildState.active||cast.mode!=='idle'){dom.interactionHint.classList.add('hidden');return}let text='';if(state.scene==='village'){let best=null,bd=76;for(const n of npcs){const d=dist(state.player.x,state.player.y,n.x,n.y);if(d<bd){best=n;bd=d}}if(best)text=`좌클릭 · ${best.name}와 대화`;else{for(const b of buildings){const r=tileRect(b),qx=clamp(state.player.x,r.x,r.x+r.w),qy=clamp(state.player.y,r.y,r.y+r.h);if(dist(state.player.x,state.player.y,qx,qy)<78){text=`좌클릭 · ${b.label}`;break}}if(!text&&canStartCast())text='좌클릭 홀드 · 캐스팅'}}else if(state.scene==='shop'){if(rectContains(shopServiceZone,state.player.x,state.player.y,22))text='좌클릭 · 계산대에서 상점 이용';else if(rectContains(shopExit,state.player.x,state.player.y,90))text='좌클릭 · 상점 밖으로'}else{if(rectContains(managerRoom,state.player.x,state.player.y,30))text='관리자실 · 장부를 좌클릭';else if(dist(state.player.x,state.player.y,aquariumTank.x,aquariumTank.y)<190)text='수조 가까이에서 좌클릭'}if(text){dom.interactionHint.innerHTML=`<b>●</b> ${text}`;dom.interactionHint.classList.remove('hidden')}else dom.interactionHint.classList.add('hidden')}
 
@@ -258,28 +264,20 @@ function pixelText(text,x,y,size=12,color='#fff7d2',align='left'){ctx.save();ctx
 function lighting(){const h=gameHour();let dark=0,tint=null,shadowLen=7;if(h>=7&&h<16){shadowLen=8}else if(h>=16&&h<20){const t=(h-16)/4;dark=.03+t*.18;tint=`rgba(224,126,70,${.04+t*.12})`;shadowLen=8+18*t}else if(h>=4&&h<7){const t=(h-4)/3;dark=.32*(1-t);tint=`rgba(88,108,151,${.13*(1-t)})`;shadowLen=25-17*t}else{dark=.47;tint='rgba(32,52,96,.22)';shadowLen=5}if(state.weather==='cloudy')dark+=.06;if(state.weather==='rain')dark+=.11;return{dark:clamp(dark,0,.62),tint,shadowLen}}
 const shadowAlpha=()=>(state.weather==='sunny'?.24:state.weather==='cloudy'?.12:.07)*(1-lighting().dark*.55);
 
-function traceWorldPoly(points){ctx.beginPath();points.forEach(([x,y],i)=>{const sx=x*TILE-camera.x,sy=y*TILE-camera.y;i?ctx.lineTo(sx,sy):ctx.moveTo(sx,sy)});ctx.closePath()}
-function drawTerraceEdge(points){
-  ctx.save();const top=points.map(([x,y])=>[x*TILE-camera.x,y*TILE-camera.y]);
-  ctx.beginPath();top.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));for(let i=top.length-1;i>=0;i--)ctx.lineTo(top[i][0],top[i][1]+22);ctx.closePath();ctx.fillStyle='#506b4d';ctx.fill();
-  ctx.strokeStyle='#334a37';ctx.lineWidth=3;ctx.beginPath();top.forEach(([x,y],i)=>i?ctx.lineTo(x,y+20):ctx.moveTo(x,y+20));ctx.stroke();
-  for(let i=0;i<top.length-1;i++){const[x1,y1]=top[i],[x2,y2]=top[i+1],len=Math.hypot(x2-x1,y2-y1);if(len<8)continue;const count=Math.floor(len/42);for(let j=0;j<count;j++){const t=(j+.35)/(count+.2),x=lerp(x1,x2,t),y=lerp(y1,y2,t)+8+(j%2)*5;ctx.fillStyle=j%2?'#61785a':'#415d45';ctx.fillRect(Math.round(x),Math.round(y),13+(j%3)*4,5)}}ctx.restore();
-}
-function drawStair(tx,ty,w=3,steps=6){const x=tx*TILE-camera.x,y=ty*TILE-camera.y,ww=w*TILE;ctx.fillStyle='#b99a69';ctx.fillRect(x,y,ww,steps*7);for(let i=0;i<steps;i++){ctx.fillStyle=i%2?'#a9895c':'#c3a571';ctx.fillRect(x,y+i*7,ww,5);ctx.fillStyle='rgba(71,55,37,.25)';ctx.fillRect(x,y+i*7+5,ww,2)}}
+function traceTilePoly(points,ox=0,oy=0){ctx.beginPath();points.forEach(([x,y],i)=>{const sx=x*TILE-camera.x+ox,sy=y*TILE-camera.y+oy;i?ctx.lineTo(sx,sy):ctx.moveTo(sx,sy)});ctx.closePath()}
+function drawLandMass(poly,top,cliff='#4e6749',depth=20){traceTilePoly(poly,0,depth);ctx.fillStyle=cliff;ctx.fill();traceTilePoly(poly);ctx.fillStyle=top;ctx.fill();ctx.strokeStyle='rgba(49,72,48,.6)';ctx.lineWidth=3;ctx.stroke()}
+function drawNarrowStairs(){const x=29.55*TILE-camera.x,y=22.2*TILE-camera.y,w=3.9*TILE,h=12.5*TILE;ctx.fillStyle='#52694b';ctx.fillRect(x-18,y,w+36,h);ctx.fillStyle='#bda06d';ctx.fillRect(x,y,w,h);for(let i=0;i<19;i++){const sy=y+i*(h/19);ctx.fillStyle=i%2?'#aa8d5e':'#c7ab76';ctx.fillRect(x,sy,w,5);ctx.fillStyle='rgba(70,53,35,.22)';ctx.fillRect(x,sy+5,w,2)}ctx.fillStyle='#5c774f';for(let i=0;i<9;i++){ctx.fillRect(x-14,y+9+i*42,10,18);ctx.fillRect(x+w+4,y+28+i*42,10,18)}}
 function drawVillageGround(){
-  ctx.fillStyle='#6f9b63';ctx.fillRect(0,0,VIEW.w,VIEW.h);
-  ctx.save();ctx.translate(-camera.x,-camera.y);ctx.fillStyle='#526f59';for(let x=-220;x<CONFIG.villageCols*TILE+420;x+=430){ctx.beginPath();ctx.moveTo(x,260);ctx.lineTo(x+125,78+(Math.abs(x/430)%3)*32);ctx.lineTo(x+245,145);ctx.lineTo(x+430,260);ctx.closePath();ctx.fill()}ctx.fillStyle='#63865e';ctx.fillRect(0,205,CONFIG.villageCols*TILE,95);ctx.restore();
-  const upper=[[0,8],[13,8],[13,10],[29,10],[29,8],[44,8],[44,10],[62,10],[62,7],[82,7],[82,9],[99,9],[99,12],[112,12],[112,0],[0,0]];
-  const middle=[[0,31],[12,31],[12,29],[27,29],[27,32],[43,32],[43,28],[59,28],[59,31],[78,31],[78,27],[94,27],[94,30],[112,30],[112,12],[99,12],[99,9],[82,9],[82,7],[62,7],[62,10],[44,10],[44,8],[29,8],[29,10],[13,10],[13,8],[0,8]];
-  const lower=[[0,50],[16,50],[16,47],[32,47],[32,51],[49,51],[49,46],[63,46],[63,49],[79,49],[79,44],[95,44],[95,48],[112,48],[112,30],[94,30],[94,27],[78,27],[78,31],[59,31],[59,28],[43,28],[43,32],[27,32],[27,29],[12,29],[12,31],[0,31]];
-  traceWorldPoly(upper);ctx.fillStyle='#719d65';ctx.fill();traceWorldPoly(middle);ctx.fillStyle='#7ba86a';ctx.fill();traceWorldPoly(lower);ctx.fillStyle='#84b372';ctx.fill();
-  ctx.save();ctx.translate(-camera.x,-camera.y);ctx.fillStyle='#8aba76';ctx.fillRect(0,48*TILE,CONFIG.villageCols*TILE,(CONFIG.villageRows-48)*TILE);ctx.restore();
-  drawTerraceEdge([[0,31],[12,31],[12,29],[27,29],[27,32],[43,32],[43,28],[59,28],[59,31],[78,31],[78,27],[94,27],[94,30],[112,30]]);drawTerraceEdge([[0,50],[16,50],[16,47],[32,47],[32,51],[49,51],[49,46],[63,46],[63,49],[79,49],[79,44],[95,44],[95,48],[112,48]]);
-  drawStair(46,29,3,7);drawStair(79,28,3,7);drawStair(30,48,3,7);drawStair(61,47,3,7);drawStair(93,45,3,7);
+  ctx.fillStyle='#3f5f49';ctx.fillRect(0,0,VIEW.w,VIEW.h);
+  ctx.save();ctx.translate(-camera.x,-camera.y);ctx.fillStyle='#304c3d';for(let x=-180;x<CONFIG.villageCols*TILE+260;x+=320){ctx.beginPath();ctx.moveTo(x,270);ctx.lineTo(x+95,90+(Math.abs(x/320)%3)*34);ctx.lineTo(x+190,150);ctx.lineTo(x+340,270);ctx.closePath();ctx.fill()}ctx.restore();
+  drawLandMass(UPPER_LAND,'#77a56b','#4c6548',26);
+  drawLandMass(LOWER_LAND,'#86b474','#577451',16);
+  drawNarrowStairs();
   ctx.save();ctx.translate(-camera.x,-camera.y);
-  for(const [key] of pathTiles){const[tx,ty]=key.split(',').map(Number),x=tx*TILE,y=ty*TILE;if(!visible(rect(x,y,TILE,TILE),32))continue;const n=(tx*17+ty*29)%5;ctx.fillStyle=['#c6a66f','#ceb27b','#bea06a','#d0b47d','#c8aa72'][n];ctx.fillRect(x,y,TILE,TILE);ctx.strokeStyle='rgba(103,76,44,.19)';ctx.strokeRect(x+.5,y+.5,TILE-1,TILE-1);ctx.fillStyle='rgba(244,220,170,.28)';ctx.fillRect(x+3+(n*6)%19,y+5+(n*9)%18,6,3)}
-  for(const g of grassTufts){if(pondNorm(g.x,g.y)<1.12)continue;if(pathTiles.has(`${Math.floor(g.x/TILE)},${Math.floor(g.y/TILE)}`))continue;ctx.fillStyle=g.t>.65?'#5f8c55':'#6e9d5e';ctx.fillRect(Math.round(g.x),Math.round(g.y),2,5);ctx.fillRect(Math.round(g.x+4),Math.round(g.y+2),2,4)}
-  for(const f of flowerPatches){if(pondNorm(f.x,f.y)<1.1)continue;if(pathTiles.has(`${Math.floor(f.x/TILE)},${Math.floor(f.y/TILE)}`))continue;ctx.fillStyle='#4e7d4e';ctx.fillRect(Math.round(f.x),Math.round(f.y),2,7);ctx.fillStyle=f.c;ctx.fillRect(Math.round(f.x-2),Math.round(f.y-2),6,4)}ctx.restore();drawPond();drawBusStop();
+  for(const [key] of pathTiles){const[tx,ty]=key.split(',').map(Number),x=tx*TILE,y=ty*TILE;if(!visible(rect(x,y,TILE,TILE),32))continue;const n=(tx*17+ty*29)%5;ctx.fillStyle=['#c4a36d','#ceb07a','#b99a65','#d0b17a','#c6a872'][n];ctx.fillRect(x,y,TILE,TILE);ctx.strokeStyle='rgba(100,74,43,.2)';ctx.strokeRect(x+.5,y+.5,TILE-1,TILE-1);ctx.fillStyle='rgba(248,224,173,.26)';ctx.fillRect(x+4+(n*6)%18,y+6+(n*9)%17,6,3)}
+  for(const g of grassTufts){if(!isVillageLandPoint(g.x,g.y)||pondNorm(g.x,g.y)<1.12)continue;if(pathTiles.has(`${Math.floor(g.x/TILE)},${Math.floor(g.y/TILE)}`))continue;ctx.fillStyle=g.t>.65?'#628f58':'#70a063';ctx.fillRect(Math.round(g.x),Math.round(g.y),2,5);ctx.fillRect(Math.round(g.x+4),Math.round(g.y+2),2,4)}
+  for(const f of flowerPatches){if(!isVillageLandPoint(f.x,f.y)||pondNorm(f.x,f.y)<1.1)continue;if(pathTiles.has(`${Math.floor(f.x/TILE)},${Math.floor(f.y/TILE)}`))continue;ctx.fillStyle='#4e7d4e';ctx.fillRect(Math.round(f.x),Math.round(f.y),2,7);ctx.fillStyle=f.c;ctx.fillRect(Math.round(f.x-2),Math.round(f.y-2),6,4)}ctx.restore();
+  drawPond();drawBusStop();
 }
 function pondScreenPath(scale=1){ctx.beginPath();const steps=112;for(let i=0;i<=steps;i++){const a=i/steps*Math.PI*2,edge=pondBoundaryScale(a)*scale,x=pond.cx+Math.cos(a)*pond.rx*edge-camera.x,y=pond.cy+Math.sin(a)*pond.ry*edge-camera.y;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath()}
 function drawPond(){
@@ -292,22 +290,21 @@ function drawPond(){
 }
 function drawBusStop(){const s=w2s(busShelter.x,busShelter.y),L=lighting();ctx.fillStyle=`rgba(40,42,31,${shadowAlpha()})`;ctx.fillRect(s.x+L.shadowLen,s.y+48,busShelter.w,36);ctx.fillStyle='#6b4a30';ctx.fillRect(s.x,s.y+31,busShelter.w,8);ctx.fillRect(s.x+8,s.y+39,7,56);ctx.fillRect(s.x+busShelter.w-15,s.y+39,7,56);ctx.fillStyle='#d6bd82';ctx.fillRect(s.x+30,s.y+66,80,9);ctx.fillStyle='#294d63';ctx.fillRect(s.x+busShelter.w+12,s.y+2,7,94);ctx.fillStyle='#f3e3a9';ctx.fillRect(s.x+busShelter.w-3,s.y+2,37,28);pixelText('BUS',s.x+busShelter.w+15,s.y+21,9,'#294d63','center');pixelText('버스정류장',s.x+busShelter.w*.5,s.y+116,9,'#fff0bd','center')}
 function drawBuilding(b){
-  const r=tileRect(b);if(!visible(rect(r.x-35,r.y-55,r.w+80,r.h+95)))return;const s=w2s(r.x,r.y),L=lighting(),depth=24;
-  ctx.fillStyle=`rgba(34,38,29,${shadowAlpha()})`;ctx.beginPath();ctx.moveTo(s.x+18+L.shadowLen,s.y+70+L.shadowLen*.4);ctx.lineTo(s.x+r.w+30+L.shadowLen,s.y+70+L.shadowLen*.4);ctx.lineTo(s.x+r.w+12+L.shadowLen,s.y+r.h+24);ctx.lineTo(s.x+2+L.shadowLen,s.y+r.h+24);ctx.closePath();ctx.fill();
-  ctx.fillStyle='#6d614e';ctx.fillRect(s.x+2,s.y+r.h-20,r.w-4,20);for(let x=8;x<r.w-10;x+=30){ctx.fillStyle=(x/30)%2?'#756854':'#625847';ctx.fillRect(s.x+x,s.y+r.h-17,22,7)}
-  ctx.fillStyle='#8c704d';ctx.beginPath();ctx.moveTo(s.x+r.w-10,s.y+72);ctx.lineTo(s.x+r.w+depth,s.y+58);ctx.lineTo(s.x+r.w+depth,s.y+r.h-17);ctx.lineTo(s.x+r.w-10,s.y+r.h);ctx.closePath();ctx.fill();
-  ctx.fillStyle=b.wall;ctx.fillRect(s.x,s.y+66,r.w-8,r.h-80);ctx.fillStyle='#65462e';ctx.fillRect(s.x,s.y+64,9,r.h-64);ctx.fillRect(s.x+r.w-17,s.y+64,9,r.h-64);for(let x=52;x<r.w-42;x+=72)ctx.fillRect(s.x+x,s.y+68,6,r.h-87);
-  ctx.fillStyle='#3f342a';ctx.beginPath();ctx.moveTo(s.x-24,s.y+70);ctx.lineTo(s.x+r.w*.5,s.y-18);ctx.lineTo(s.x+r.w+30,s.y+70);ctx.lineTo(s.x+r.w+18,s.y+82);ctx.lineTo(s.x-18,s.y+82);ctx.closePath();ctx.fill();
-  ctx.fillStyle=b.roof;ctx.beginPath();ctx.moveTo(s.x-20,s.y+66);ctx.lineTo(s.x+r.w*.5,s.y-14);ctx.lineTo(s.x+r.w*.5,s.y+68);ctx.lineTo(s.x-20,s.y+75);ctx.closePath();ctx.fill();
-  ctx.fillStyle='#5f4336';ctx.beginPath();ctx.moveTo(s.x+r.w*.5,s.y-14);ctx.lineTo(s.x+r.w+26,s.y+66);ctx.lineTo(s.x+r.w+18,s.y+76);ctx.lineTo(s.x+r.w*.5,s.y+68);ctx.closePath();ctx.fill();
-  ctx.strokeStyle='rgba(255,237,190,.18)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(s.x+r.w*.5,s.y-11);ctx.lineTo(s.x-16,s.y+67);ctx.stroke();
-  if(b.kind!=='shop'){ctx.fillStyle='#665148';ctx.fillRect(s.x+r.w*.72,s.y+2,23,49);ctx.fillStyle='#44362f';ctx.fillRect(s.x+r.w*.72-3,s.y-2,29,8);ctx.fillStyle='rgba(223,223,210,.12)';ctx.fillRect(s.x+r.w*.72+5,s.y+8,5,33)}
-  for(let x=38;x<r.w-55;x+=82){ctx.fillStyle='#543d2e';ctx.fillRect(s.x+x-4,s.y+94,39,36);ctx.fillStyle=isNight()?'#f2cf79':'#afd8d5';ctx.fillRect(s.x+x,s.y+98,31,27);ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(s.x+x+4,s.y+102,5,18);ctx.fillStyle='#7f4e3e';ctx.fillRect(s.x+x-2,s.y+129,35,7);ctx.fillStyle='#659653';ctx.fillRect(s.x+x+6,s.y+122,5,9);ctx.fillRect(s.x+x+21,s.y+121,5,10)}
-  const doorX=s.x+r.w*.5-19;ctx.fillStyle='#523723';ctx.fillRect(doorX,s.y+r.h-82,38,62);ctx.fillStyle='#775036';ctx.fillRect(doorX+4,s.y+r.h-77,30,57);ctx.fillStyle='#e3bb61';ctx.fillRect(doorX+28,s.y+r.h-51,4,4);ctx.fillStyle='#7a593b';ctx.fillRect(doorX-13,s.y+r.h-21,64,10);ctx.fillStyle='#9e7d55';ctx.fillRect(doorX-20,s.y+r.h-11,78,9);
-  if(b.sign){ctx.fillStyle='#523b2a';ctx.fillRect(s.x+r.w*.5-65,s.y+66,130,27);pixelText(b.sign,s.x+r.w*.5,s.y+85,10,'#ffe6a5','center')}
-  if(b.kind==='shop'){ctx.fillStyle='#7d5132';ctx.fillRect(s.x+15,s.y+r.h-42,62,34);ctx.fillStyle='#caa661';ctx.fillRect(s.x+12,s.y+r.h-48,68,7);for(let i=0;i<3;i++){ctx.fillStyle=['#d8bb61','#86aa63','#d98b78'][i];ctx.fillRect(s.x+23+i*16,s.y+r.h-34,11,12)}}
+  const r=tileRect(b);if(!visible(rect(r.x-28,r.y-48,r.w+56,r.h+75)))return;const s=w2s(r.x,r.y),L=lighting();
+  ctx.fillStyle=`rgba(38,43,31,${shadowAlpha()})`;ctx.beginPath();ctx.ellipse(s.x+r.w*.52+L.shadowLen,s.y+r.h+8,r.w*.48,18,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#73644f';ctx.fillRect(s.x+8,s.y+r.h-25,r.w-16,22);for(let x=15;x<r.w-25;x+=34){ctx.fillStyle=(x/34)%2?'#665947':'#80705a';ctx.fillRect(s.x+x,s.y+r.h-20,24,7)}
+  ctx.fillStyle=b.wall;ctx.fillRect(s.x+7,s.y+68,r.w-14,r.h-88);ctx.fillStyle='#67472f';ctx.fillRect(s.x+8,s.y+66,8,r.h-67);ctx.fillRect(s.x+r.w-16,s.y+66,8,r.h-67);for(let x=55;x<r.w-55;x+=76)ctx.fillRect(s.x+x,s.y+70,6,r.h-96);
+  ctx.fillStyle='#46352d';ctx.beginPath();ctx.moveTo(s.x-17,s.y+72);ctx.lineTo(s.x+r.w*.5,s.y-13);ctx.lineTo(s.x+r.w+17,s.y+72);ctx.lineTo(s.x+r.w+12,s.y+82);ctx.lineTo(s.x-12,s.y+82);ctx.closePath();ctx.fill();
+  ctx.fillStyle=b.roof;ctx.beginPath();ctx.moveTo(s.x-13,s.y+68);ctx.lineTo(s.x+r.w*.5,s.y-9);ctx.lineTo(s.x+r.w+13,s.y+68);ctx.lineTo(s.x+r.w+8,s.y+76);ctx.lineTo(s.x-8,s.y+76);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='rgba(70,48,39,.24)';ctx.lineWidth=2;for(let yy=19;yy<68;yy+=12){const half=(r.w*.5+13)*(yy/77);ctx.beginPath();ctx.moveTo(s.x+r.w*.5-half,s.y-9+yy);ctx.lineTo(s.x+r.w*.5+half,s.y-9+yy);ctx.stroke()}
+  ctx.fillStyle='#503b2e';ctx.fillRect(s.x-10,s.y+73,r.w+20,9);
+  for(let x=42;x<r.w-58;x+=84){ctx.fillStyle='#584133';ctx.fillRect(s.x+x-5,s.y+98,41,37);ctx.fillStyle=isNight()?'#f0d17f':'#abd6d4';ctx.fillRect(s.x+x,s.y+103,31,25);ctx.fillStyle='rgba(255,255,255,.22)';ctx.fillRect(s.x+x+4,s.y+106,4,17);ctx.fillStyle='#8a5543';ctx.fillRect(s.x+x-3,s.y+132,37,7);ctx.fillStyle='#629451';ctx.fillRect(s.x+x+6,s.y+125,5,8);ctx.fillRect(s.x+x+21,s.y+124,5,9)}
+  const doorX=s.x+r.w*.5-19;ctx.fillStyle='#4e3525';ctx.fillRect(doorX,s.y+r.h-84,38,64);ctx.fillStyle='#795239';ctx.fillRect(doorX+4,s.y+r.h-79,30,59);ctx.fillStyle='#e1ba61';ctx.fillRect(doorX+28,s.y+r.h-51,4,4);ctx.fillStyle='#7a5a3c';ctx.fillRect(doorX-14,s.y+r.h-21,66,9);ctx.fillStyle='#a48258';ctx.fillRect(doorX-21,s.y+r.h-12,80,9);
+  if(b.kind!=='shop'){ctx.fillStyle='#68544a';ctx.fillRect(s.x+r.w*.72,s.y+8,21,43);ctx.fillStyle='#453731';ctx.fillRect(s.x+r.w*.72-3,s.y+4,27,7)}
+  if(b.sign){ctx.fillStyle='#523b2a';ctx.fillRect(s.x+r.w*.5-65,s.y+69,130,27);pixelText(b.sign,s.x+r.w*.5,s.y+88,10,'#ffe6a5','center')}
+  if(b.kind==='shop'){ctx.fillStyle='#7d5132';ctx.fillRect(s.x+16,s.y+r.h-42,60,34);ctx.fillStyle='#caa661';ctx.fillRect(s.x+13,s.y+r.h-48,66,7);for(let i=0;i<3;i++){ctx.fillStyle=['#d8bb61','#86aa63','#d98b78'][i];ctx.fillRect(s.x+23+i*16,s.y+r.h-34,11,12)}}
   if(b.kind==='workshop'){ctx.fillStyle='#69482f';ctx.fillRect(s.x+r.w-78,s.y+r.h-48,60,37);ctx.fillStyle='#a5aca8';ctx.fillRect(s.x+r.w-57,s.y+r.h-72,8,29);ctx.fillRect(s.x+r.w-65,s.y+r.h-70,25,7)}
-  if(b.kind==='aquarium'){ctx.fillStyle='#718278';ctx.fillRect(s.x+15,s.y+r.h-51,27,49);ctx.fillStyle='#9d8d75';ctx.fillRect(s.x+r.w-40,s.y+r.h-62,22,61);ctx.fillStyle='#b8c8bd';ctx.fillRect(s.x+r.w*.5-66,s.y+37,132,22);pixelText('낚시 아쿠아리움',s.x+r.w*.5,s.y+53,9,'#405149','center')}
+  if(b.kind==='aquarium'){ctx.fillStyle='#718278';ctx.fillRect(s.x+15,s.y+r.h-51,27,49);ctx.fillStyle='#9d8d75';ctx.fillRect(s.x+r.w-40,s.y+r.h-62,22,61);ctx.fillStyle='#b8c8bd';ctx.fillRect(s.x+r.w*.5-66,s.y+38,132,22);pixelText('낚시 아쿠아리움',s.x+r.w*.5,s.y+54,9,'#405149','center')}
 }
 function drawTree(t){const s=w2s(t.x,t.y);if(s.x<-90||s.y<-120||s.x>VIEW.w+90||s.y>VIEW.h+100)return;const L=lighting();ctx.fillStyle=`rgba(42,47,33,${shadowAlpha()})`;ctx.beginPath();ctx.ellipse(s.x+L.shadowLen,s.y+30,31*t.s,10*t.s,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#68472d';ctx.fillRect(s.x-6*t.s,s.y,12*t.s,40*t.s);const c1=t.blossom?'#dca3b8':'#4f8559',c2=t.blossom?'#efbdca':'#66a064';for(const[dx,dy,r]of[[-18,-12,19],[12,-20,22],[0,-39,21],[24,-4,16],[-27,-31,16]]){ctx.fillStyle=((dx+dy)%3)?c1:c2;ctx.beginPath();ctx.arc(s.x+dx*t.s,s.y+dy*t.s,r*t.s,0,Math.PI*2);ctx.fill()}}
 function drawRock(rc){const s=w2s(rc.x,rc.y);ctx.fillStyle=`rgba(32,38,30,${shadowAlpha()})`;ctx.beginPath();ctx.ellipse(s.x+rc.w*.55,s.y+rc.h*.9,rc.w*.5,rc.h*.25,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#4e5a53';ctx.beginPath();ctx.moveTo(s.x+3,s.y+rc.h);ctx.lineTo(s.x+rc.w*.2,s.y+rc.h*.28);ctx.lineTo(s.x+rc.w*.62,s.y+2);ctx.lineTo(s.x+rc.w,s.y+rc.h*.45);ctx.lineTo(s.x+rc.w*.9,s.y+rc.h);ctx.closePath();ctx.fill()}
