@@ -1,4 +1,4 @@
-name: Apply v3.10 bobber retrieve before bite
+name: Apply v3.11 connected village roads
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Add bobber retrieval before fishing minigame
+      - name: Make village paths continuous between buildings
         shell: bash
         run: |
           python - <<'PY'
@@ -28,15 +28,26 @@ jobs:
           p = Path('prototype/v3/game-v31-source.js')
           s = p.read_text(encoding='utf-8')
 
-          old = "if(cast.mode==='charging'){releaseCast();return}if(cast.mode==='waiting')return;handleWorldClick()"
-          new = "if(cast.mode==='charging'){releaseCast();return}if(cast.mode==='waiting'){resetCast();showToast('찌를 회수했습니다.');return}handleWorldClick()"
-          assert old in s, 'pointerup waiting-cast handler not found'
-          s = s.replace(old, new, 1)
+          old_paths = "addH(18,103,40,3);addV(39,40,43,3);addV(38,40,62,3);addV(39,40,86,3);addV(40,54,19,3);addH(19,31,54,3);addV(54,66,31,3);addV(40,53,102,3);addH(99,102,53,3);addV(53,58,99,3);addH(92,102,58,3);"
+          new_paths = "addH(18,103,40,3);addV(39,40,43,3);addV(38,40,62,3);addV(39,40,86,3);addV(40,54,19,3);addH(19,31,54,3);addV(54,66,31,3);addV(40,53,102,3);addH(99,102,53,3);addV(53,58,99,3);addH(92,102,58,3);"
+          assert old_paths in s, 'village path graph not found'
+          s = s.replace(old_paths, new_paths, 1)
+
+          old_render = "for(const [key] of pathTiles){const[tx,ty]=key.split(',').map(Number),x=tx*TILE,y=ty*TILE;if(!visible(rect(x,y,TILE,TILE),32))continue;const n=Math.abs((tx*17+ty*29)%5);ctx.fillStyle='#8d6d43';ctx.fillRect(x-2,y-2,TILE+4,TILE+4);ctx.fillStyle=['#c79e62','#d0aa6c','#bd9259','#d5ad6f','#c49a5f'][n];ctx.fillRect(x,y,TILE,TILE);ctx.strokeStyle='rgba(82,55,31,.72)';ctx.lineWidth=1.5;ctx.strokeRect(x+.75,y+.75,TILE-1.5,TILE-1.5);ctx.fillStyle='rgba(246,218,158,.45)';ctx.fillRect(x+4+(n*5)%17,y+5+(n*7)%18,8,3);ctx.fillStyle='rgba(104,72,40,.24)';ctx.fillRect(x+18-(n*2)%9,y+20-(n*3)%8,5,3)}"
+          new_render = "for(const [key] of pathTiles){const[tx,ty]=key.split(',').map(Number),x=tx*TILE,y=ty*TILE;if(!visible(rect(x,y,TILE,TILE),36))continue;ctx.fillStyle='#8b6942';ctx.fillRect(x-4,y-4,TILE+8,TILE+8)}for(const [key] of pathTiles){const[tx,ty]=key.split(',').map(Number),x=tx*TILE,y=ty*TILE;if(!visible(rect(x,y,TILE,TILE),36))continue;const n=Math.abs((tx*17+ty*29)%5);ctx.fillStyle=['#c9a063','#d0a96b','#c39a5d','#d4ad6d','#c79e61'][n];ctx.fillRect(x-1,y-1,TILE+2,TILE+2);ctx.fillStyle='rgba(244,216,156,.34)';ctx.fillRect(x+5+(n*4)%15,y+6+(n*6)%14,7,3);ctx.fillStyle='rgba(91,62,35,.18)';ctx.fillRect(x+18-(n*2)%8,y+21-(n*3)%9,4,3)}"
+          assert old_render in s, 'old tiled path renderer not found'
+          s = s.replace(old_render, new_render, 1)
+
+          old_aprons = "  const doorAprons=[[43,39,2,2],[62,38,2,3],[86,39,2,2],[102,53,2,2],[19,54,2,2],[31,66,2,2]];\n  for(const [tx,ty,tw,th] of doorAprons){const x=tx*TILE,y=ty*TILE;ctx.fillStyle='#8d6d43';ctx.fillRect(x-3,y-3,tw*TILE+6,th*TILE+6);ctx.fillStyle='#caa065';ctx.fillRect(x,y,tw*TILE,th*TILE);ctx.strokeStyle='rgba(82,55,31,.7)';ctx.lineWidth=2;ctx.strokeRect(x+1,y+1,tw*TILE-2,th*TILE-2)}ctx.restore();"
+          new_aprons = "  ctx.restore();"
+          assert old_aprons in s, 'isolated door apron renderer not found'
+          s = s.replace(old_aprons, new_aprons, 1)
+
           p.write_text(s, encoding='utf-8')
 
           index = Path('prototype/v3/index.html')
           h = index.read_text(encoding='utf-8')
-          h = re.sub(r'game-v31-source\.js\?v=[^\"\']+', 'game-v31-source.js?v=20260915-12', h, count=1)
+          h = re.sub(r'game-v31-source\\.js\\?v=[^\\\"\\\']+', 'game-v31-source.js?v=20260916-01', h, count=1)
           index.write_text(h, encoding='utf-8')
           PY
 
@@ -51,6 +62,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes"
           else
-            git commit -m "Allow bobber retrieval before bite"
+            git commit -m "Render continuous roads between village buildings"
             git push
           fi
