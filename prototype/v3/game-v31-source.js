@@ -97,7 +97,7 @@ addRoadH(0,111,7,2);addRoadH(4,10,9,3);
 // Upper walking route: bus stop -> aquarium entrance -> narrow stair descent.
 addV(14,18,7,3);addH(7,23,18,3);addV(16,20,23,3);addH(23,31,20,3);addV(20,40,31,3);
 // Lower village routes, all aligned to tile coordinates.
-addH(18,103,40,3);addV(39,40,43,3);addV(38,40,62,3);addV(39,40,86,3);addV(40,54,19,3);addH(19,31,54,3);addV(54,66,31,3);addV(40,53,102,3);addH(99,102,53,3);addV(53,58,99,3);addH(92,102,58,3);
+addV(35,66,31,5);addH(31,102,40,5);addV(38,40,43,3);addV(38,40,62,3);addV(39,40,86,3);addH(19,31,54,3);addV(52,54,19,3);addV(40,53,102,3);addH(99,102,53,3);addH(92,102,58,3);addV(53,58,99,3);
 const conifers=(()=>{
   const out=[];
   const fill=(x1,x2,y1,y2,dx,dy,phase)=>{
@@ -339,7 +339,7 @@ function drawVillageGround(){
   drawRoadTiles();
   drawNarrowStairs();
   ctx.save();ctx.translate(-camera.x,-camera.y);
-  for(const [key] of pathTiles){const[tx,ty]=key.split(',').map(Number),x=tx*TILE,y=ty*TILE;if(!visible(rect(x,y,TILE,TILE),36))continue;ctx.fillStyle='#8b6942';ctx.fillRect(x-4,y-4,TILE+8,TILE+8)}for(const [key] of pathTiles){const[tx,ty]=key.split(',').map(Number),x=tx*TILE,y=ty*TILE;if(!visible(rect(x,y,TILE,TILE),36))continue;const n=Math.abs((tx*17+ty*29)%5);ctx.fillStyle=['#c9a063','#d0a96b','#c39a5d','#d4ad6d','#c79e61'][n];ctx.fillRect(x-1,y-1,TILE+2,TILE+2);ctx.fillStyle='rgba(244,216,156,.34)';ctx.fillRect(x+5+(n*4)%15,y+6+(n*6)%14,7,3);ctx.fillStyle='rgba(91,62,35,.18)';ctx.fillRect(x+18-(n*2)%8,y+21-(n*3)%9,4,3)}
+  for(const [key] of pathTiles){const[tx,ty]=key.split(',').map(Number),x=tx*TILE,y=ty*TILE;if(!visible(rect(x,y,TILE,TILE),40))continue;ctx.fillStyle='#87643d';ctx.fillRect(x-5,y-5,TILE+10,TILE+10)}for(const [key] of pathTiles){const[tx,ty]=key.split(',').map(Number),x=tx*TILE,y=ty*TILE;if(!visible(rect(x,y,TILE,TILE),40))continue;const n=Math.abs((tx*17+ty*29)%5);ctx.fillStyle=['#cda66b','#d5b174','#c7a064','#d8b477','#caa269'][n];ctx.fillRect(x-2,y-2,TILE+4,TILE+4);ctx.fillStyle='rgba(249,224,169,.30)';ctx.fillRect(x+4+(n*5)%16,y+7+(n*4)%13,9,3);ctx.fillStyle='rgba(92,64,38,.16)';ctx.fillRect(x+17-(n*2)%7,y+21-(n*3)%8,5,3)}
   for(const g of grassTufts){if(!isVillageLandPoint(g.x,g.y)||pondNorm(g.x,g.y)<1.12)continue;if(pathTiles.has(`${Math.floor(g.x/TILE)},${Math.floor(g.y/TILE)}`))continue;ctx.fillStyle=g.t>.65?'#628f58':'#70a063';ctx.fillRect(Math.round(g.x),Math.round(g.y),2,5);ctx.fillRect(Math.round(g.x+4),Math.round(g.y+2),2,4)}
   for(const f of flowerPatches){if(!isVillageLandPoint(f.x,f.y)||pondNorm(f.x,f.y)<1.1)continue;if(pathTiles.has(`${Math.floor(f.x/TILE)},${Math.floor(f.y/TILE)}`))continue;ctx.fillStyle='#4e7d4e';ctx.fillRect(Math.round(f.x),Math.round(f.y),2,7);ctx.fillStyle=f.c;ctx.fillRect(Math.round(f.x-2),Math.round(f.y-2),6,4)}
   ctx.restore();
